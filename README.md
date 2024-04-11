@@ -2,4 +2,4 @@
 
 # Database projects
 
-* Team Members: Tommy Chen, Lola Quiroga, Matthew Chen
+* Team Members: Tommy Chen, Lola Quiroga, Matthew Chen (mchen201)
