@@ -1,4 +1,5 @@
 #include "rbfm.h"
+#include "pfm.h"
 
 RecordBasedFileManager* RecordBasedFileManager::_rbf_manager = 0;
 
@@ -10,16 +11,13 @@ RecordBasedFileManager* RecordBasedFileManager::instance()
     return _rbf_manager;
 }
 
-RecordBasedFileManager::RecordBasedFileManager()
-{
-}
+// copy constructor
+RecordBasedFileManager::RecordBasedFileManager(){}
 
-RecordBasedFileManager::~RecordBasedFileManager()
-{
-}
+// destructor
+RecordBasedFileManager::~RecordBasedFileManager(){}
 
 RC RecordBasedFileManager::createFile(const string &fileName) {
-    return -1;
 }
 
 RC RecordBasedFileManager::destroyFile(const string &fileName) {
