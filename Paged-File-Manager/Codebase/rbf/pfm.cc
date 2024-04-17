@@ -101,8 +101,7 @@ FileHandle::FileHandle()
 
 
 FileHandle::~FileHandle()
-{
-}
+{}
 
 
 RC FileHandle::readPage(PageNum pageNum, void *data)
@@ -134,7 +133,7 @@ RC FileHandle::writePage(PageNum pageNum, const void *data)
         return -1;
     }
 
-    //move cursor to correct page (start pos)
+    // move cursor to correct page (start pos)
     if (fseek(_fp, PAGE_SIZE * pageNum, SEEK_CUR) != 0) {
         return -1;
     }
@@ -169,8 +168,7 @@ RC FileHandle::appendPage(const void *data)
 }
 
 
-unsigned FileHandle::getNumberOfPages()
-{
+unsigned FileHandle::getNumberOfPages() {
     //find total bytes
     fseek(_fp, 0, SEEK_END);
     int total_bytes = ftell(_fp);

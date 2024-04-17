@@ -92,6 +92,7 @@ public:
   //  2) Actual data is a concatenation of values of the attributes.
   //  3) For Int and Real: use 4 bytes to store the value;
   //     For Varchar: use 4 bytes to store the length of characters, then store the actual characters.
+                            // always 4 bytes unless its varchar then its 4 bytes + strlen
   //  !!! The same format is used for updateRecord(), the returned data of readRecord(), and readAttribute().
   // For an example, refer to Q8 in the Q&A at the end of the Project 1 document.
   RC insertRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, RID &rid);
