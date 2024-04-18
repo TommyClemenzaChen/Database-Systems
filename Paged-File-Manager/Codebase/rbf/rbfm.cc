@@ -47,3 +47,20 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
 RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor, const void *data) {
     return -1;
 }
+
+
+// helper structs
+class Record {
+  public:
+    struct rec {
+        list<void *> recordList;
+        int num_records;
+    };
+
+}
+
+
+
+
+
+
