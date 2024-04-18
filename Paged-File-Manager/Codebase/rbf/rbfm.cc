@@ -52,10 +52,27 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
 // helper structs
 class Record {
   public:
+    static Record* instance(); // Access to the Record instance
+
     struct rec {
         list<void *> recordList;
         int num_records;
+        unsigned null_indicators;
     };
+    // initialize Record
+
+    uint32_t calculateRecordSize(rec r) {
+        
+    }
+
+    protected:
+        Record() {
+            num_records = 0;
+            null_indicators = 0;
+            list.push(num_records);
+            list.push(null_indicators);
+        };                                   				// Constructor
+        ~Record();
 
 }
 
