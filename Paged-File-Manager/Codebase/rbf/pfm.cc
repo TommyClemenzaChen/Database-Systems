@@ -176,11 +176,20 @@ RC FileHandle::appendPage(const void *data)
 
 unsigned FileHandle::getNumberOfPages()
 {
-    //find total bytes
-    fseek(_fp, 0, SEEK_END);
-    int total_bytes = ftell(_fp);
+    //save current position
+    int saved_pos = ftell(_fp);
     
-    return total_bytes / PAGE_SIZE;
+    //travel back to start of file
+    fseek(_fp, 0, SEEK_SET);
+
+    //travel to end of file = total bytes
+    fseek(_fp, 0, SEEK_END);
+    int numPages = ftell(_fp) / PAGE_SIZE;
+
+    //travel back to saved position
+    fseek(_fp, saved_pos, SEEK_SET);
+    
+    return numPages;
 }
 
 

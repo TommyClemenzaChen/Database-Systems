@@ -22,15 +22,15 @@ typedef struct
 typedef struct 
 {
   unsigned numSlots;
-  unsigned offset;
+  unsigned FSO;
 
 } SlotDirectory;
 
 typedef struct
 {
   unsigned size;
-  unsigned addr;
-} RecordEntry;
+  unsigned RO;
+} Slot;
 
 
 // Attribute
@@ -150,9 +150,12 @@ private:
   static RecordBasedFileManager *_rbf_manager;
   static PagedFileManager *_pf_manager;
 
-  void* createRBPage();//creates a new slot directory for a page
+  RC createRBPage(void *pageData);
+  void configureSlotDirectory(SlotDirectory &sd, unsigned slots, unsigned offset);
   unsigned calculateRecordSize(const vector<Attribute> &recordDescriptor);
   SlotDirectory getSlotDirectory(void *pageData);
+  unsigned getFreeSpace(void *pageData);
+  RC configureEmptySlot(unsigned freeSpace, unsigned totalDataSize, unsigned recordSize);
 };
 
 #endif
