@@ -2,8 +2,11 @@
 #define _rbfm_h_
 
 #include <string>
+#include <cstring>
 #include <vector>
 #include <climits>
+#include <cmath>
+
 
 #include "../rbf/pfm.h"
 
@@ -15,6 +18,19 @@ typedef struct
   unsigned pageNum;	// page number
   unsigned slotNum; // slot number in the page
 } RID;
+
+typedef struct 
+{
+  unsigned numSlots;
+  unsigned offset;
+
+} SlotDirectory;
+
+typedef struct
+{
+  unsigned size;
+  unsigned addr;
+} RecordEntry;
 
 
 // Attribute
@@ -132,6 +148,12 @@ protected:
 
 private:
   static RecordBasedFileManager *_rbf_manager;
+  static PagedFileManager *_pf_manager;
+
+  void* createRBPage();//creates a new slot directory for a page
+  unsigned calculateRecordSize(const vector<Attribute> &recordDescriptor);
+  SlotDirectory getSlotDirectory(void *pageData);
 };
 
 #endif
+
