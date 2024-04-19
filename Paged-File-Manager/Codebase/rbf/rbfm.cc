@@ -64,15 +64,15 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
     
     bool pageFound = false;
     unsigned pageNum;
-    unsigned slotNum;
+
     SlotDirectory sd;
     unsigned freeSpace;
     for (int i = 0; i < fileHandle.getNumberOfPages(); i++) {
         
+        fileHandle.readPage(i, pageData);
+        
         sd = getSlotDirectory(pageData);
         freeSpace = getFreeSpace(pageData);
-
-        fileHandle.readPage(i, pageData);
         
         if (totalDataSize < freeSpace) {
             pageNum = i;
@@ -81,24 +81,30 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
         }
     }
 
+    
     //we didn't find page :(
     if (!pageFound) {
         void *new_pageData = malloc(PAGE_SIZE);
         createRBPage(new_pageData);
+        pageData = new_pageData;
         sd = getSlotDirectory(new_pageData);
         freeSpace = getFreeSpace(new_pageData);
-        pageNum = 0;
+        pageNum = fileHandle.getNumberOfPages();
+        free(new_pageData);
     }
 
-    //update slot directory of the page we're using (temp)
-    sd.FSO += totalDataSize;
+    cout << "Free Space: " << freeSpace << endl;
+    cout << "Page num: " << pageNum << endl;
+
+    //update slot directory of the page we're using
+    sd.FSO -= totalDataSize;
     sd.numSlots += 1;
 
     memcpy(pageData, &sd, sizeof(SlotDirectory));
 
     //add new slot (or find first empty?)
     Slot newSlot;
-    newSlot.RO = freeSpace + totalDataSize;
+    newSlot.RO = sd.FSO - recordSize;
     newSlot.size = recordSize;
 
     //find slot data position and insert
@@ -113,31 +119,36 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
     //set RID
     rid.pageNum = pageNum;
     rid.slotNum = sd.numSlots;
+
+    fileHandle.writePage(pageNum, pageData);
+
+    free(pageData);
     
     return 0;
-   
+
 }   
 
 RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, void *data) {
     //read entire page
-    fileHandle.readPage(rid.pageNum, data);
-    
+    void *pageData = malloc(PAGE_SIZE);
+    fileHandle.readPage(rid.pageNum, pageData);
+
     //goto correct slot
     Slot slot;
-    void *slotData = (char*)data + sizeof(SlotDirectory) + (rid.slotNum * sizeof(Slot));
+    void *slotData = (char*)pageData + sizeof(SlotDirectory) + (rid.slotNum * sizeof(Slot));
     memcpy(&slot, slotData, sizeof(Slot));
 
+    void *recordData = (char*)pageData + slot.RO;
+    memcpy(data, recordData, slot.size);
 
-    cout << rid.slotNum;
-
-    cout << slot.size << endl;
-    cout << slot.RO;
+    free(pageData);
 
     return 0;
 }
 
 RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor, const void *data) {
-    return -1;
+cout << data << endl;
+    return 0;
 }
 
 RC RecordBasedFileManager::createRBPage(void *pageData) {
@@ -167,7 +178,7 @@ unsigned RecordBasedFileManager::calculateRecordSize(const vector<Attribute> &re
                 recordSize += 4;
                 break;
             case TypeVarChar:
-                //length + name (4 + length) bytes
+                //length + name = (length + 4) bytes
                 recordSize += 4 + attr.length;
         }
         return recordSize;
@@ -181,14 +192,23 @@ SlotDirectory RecordBasedFileManager::getSlotDirectory(void *pageData) {
     return slot_directory;
 }
 
-void RecordBasedFileManager::configureSlotDirectory(SlotDirectory &sd, unsigned slots, unsigned offset) {
-    sd.numSlots = slots;
-    sd.FSO = offset;
-}
-
 unsigned RecordBasedFileManager::getFreeSpace(void *pageData) {
-    SlotDirectory sd = getSlotDirectory(pageData); 
-    unsigned occupied_space = sd.FSO + sizeof(SlotDirectory) + (sd.numSlots * sizeof(Slot));
+    unsigned totalRecordSpace = 0;
     
-    return PAGE_SIZE - occupied_space;
+    SlotDirectory sd = getSlotDirectory(pageData);
+    
+    //HEADER = [SD][slot 1][slot 2][slot 3]...[slot n]
+    unsigned headerSpace = sizeof(SlotDirectory) + (sd.numSlots * sizeof(Slot));
+
+    //go through each slot and calculate space used by records
+    void *slotData = (char*)pageData + sizeof(SlotDirectory);
+    for (int i = 0; i < sd.numSlots; i++) {
+        Slot slot;
+        memcpy(&slot, slotData, sizeof(Slot));
+        totalRecordSpace += slot.size; 
+    }
+    
+    unsigned freeSpace = PAGE_SIZE - headerSpace - totalRecordSpace;
+    
+    return freeSpace;
 }
