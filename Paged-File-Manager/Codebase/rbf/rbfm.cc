@@ -1,7 +1,7 @@
 #include "rbfm.h"
-#include "pfm.h"
 
 RecordBasedFileManager* RecordBasedFileManager::_rbf_manager = 0;
+PagedFileManager* RecordBasedFileManager::_pf_manager = 0;
 
 RecordBasedFileManager* RecordBasedFileManager::instance()
 {
@@ -11,129 +11,204 @@ RecordBasedFileManager* RecordBasedFileManager::instance()
     return _rbf_manager;
 }
 
-// copy constructor
-RecordBasedFileManager::RecordBasedFileManager(){}
+RecordBasedFileManager::RecordBasedFileManager()
+{
+    _pf_manager = PagedFileManager::instance();
+}
 
-// destructor
-RecordBasedFileManager::~RecordBasedFileManager(){}
+RecordBasedFileManager::~RecordBasedFileManager()
+{
+
+}
 
 RC RecordBasedFileManager::createFile(const string &fileName) {
-    // create page here and create slot directory
+
+    if (_pf_manager->createFile(fileName) != 0) {
+        return -1;
+    }
+
+    void *pageData = malloc(PAGE_SIZE);
+    createRBPage(pageData);
+
+    //add page to new file
+    FileHandle handle;
+    _pf_manager->openFile(fileName, handle);
+    handle.appendPage(pageData);
+    _pf_manager->closeFile(handle);
     
-    // store number of records and the free space offset
-    return PagedFileManager.createFile(&fileName);
+    free(pageData);
+
+    return 0;
 }
 
 RC RecordBasedFileManager::destroyFile(const string &fileName) {
-    return PagedFileManager.destroyFile(&fileName);
+    return _pf_manager->destroyFile(fileName);
 }
 
 RC RecordBasedFileManager::openFile(const string &fileName, FileHandle &fileHandle) {
-    return PagedFileManager.openFile(&fileName, &fileHandle);
+    return _pf_manager->openFile(fileName, fileHandle);
 }
 
 RC RecordBasedFileManager::closeFile(FileHandle &fileHandle) {
-    return PagedFileManager.closeFile(&fileHandle);
+    return _pf_manager->closeFile(fileHandle);
 }
 
 RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, RID &rid) {
-    return -1;
-}
+    /*NOTE: *data is the new record to insert
+    ex. ("Tom", 25, NULL, NULL, 100) = "[0x30][0x04][0x03][0x04]"
+    */
+    void *pageData = malloc(PAGE_SIZE);
+
+    unsigned recordSize = calculateRecordSize(recordDescriptor);
+    unsigned totalDataSize = recordSize + sizeof(Slot);
+    
+    bool pageFound = false;
+    unsigned pageNum;
+
+    SlotDirectory sd;
+    unsigned freeSpace;
+    for (int i = 0; i < fileHandle.getNumberOfPages(); i++) {
+        
+        fileHandle.readPage(i, pageData);
+        
+        sd = getSlotDirectory(pageData);
+        freeSpace = getFreeSpace(pageData);
+        
+        if (totalDataSize < freeSpace) {
+            pageNum = i;
+            pageFound = true;
+            break;
+        }
+    }
+
+    
+    //we didn't find page :(
+    if (!pageFound) {
+        void *new_pageData = malloc(PAGE_SIZE);
+        createRBPage(new_pageData);
+        pageData = new_pageData;
+        sd = getSlotDirectory(new_pageData);
+        freeSpace = getFreeSpace(new_pageData);
+        pageNum = fileHandle.getNumberOfPages();
+        free(new_pageData);
+    }
+
+    cout << "Free Space: " << freeSpace << endl;
+    cout << "Page num: " << pageNum << endl;
+
+    //update slot directory of the page we're using
+    sd.FSO -= totalDataSize;
+    sd.numSlots += 1;
+
+    memcpy(pageData, &sd, sizeof(SlotDirectory));
+
+    //add new slot (or find first empty?)
+    Slot newSlot;
+    newSlot.RO = sd.FSO - recordSize;
+    newSlot.size = recordSize;
+
+    //find slot data position and insert
+    void* slotData = (char*)pageData + sizeof(SlotDirectory) + (sd.numSlots * sizeof(Slot));
+
+    memcpy(slotData, &newSlot, sizeof(Slot));
+
+    //find start of next record position and insert
+    void* recordData = (char*)slotData + sd.FSO;
+    memcpy(recordData, data, recordSize);
+
+    //set RID
+    rid.pageNum = pageNum;
+    rid.slotNum = sd.numSlots;
+
+    fileHandle.writePage(pageNum, pageData);
+
+    free(pageData);
+    
+    return 0;
+
+}   
 
 RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, void *data) {
-    return -1;
+    //read entire page
+    void *pageData = malloc(PAGE_SIZE);
+    fileHandle.readPage(rid.pageNum, pageData);
+
+    //goto correct slot
+    Slot slot;
+    void *slotData = (char*)pageData + sizeof(SlotDirectory) + (rid.slotNum * sizeof(Slot));
+    memcpy(&slot, slotData, sizeof(Slot));
+
+    void *recordData = (char*)pageData + slot.RO;
+    memcpy(data, recordData, slot.size);
+
+    free(pageData);
+
+    return 0;
 }
 
 RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor, const void *data) {
-    return -1;
+cout << data << endl;
+    return 0;
 }
 
+RC RecordBasedFileManager::createRBPage(void *pageData) {
+    //create slot directory
+    SlotDirectory slot_directory;
+    slot_directory.numSlots = 0;
+    slot_directory.FSO = PAGE_SIZE;
 
-// helper structs
-class Record {
-  public:
-    static Record* instance(); // Access to the Record instance
-
-    struct rec {
-        list<void *> recordList;
-        int num_records;
-        unsigned null_indicators;
-        vector<Attribute> &rd; 
-        const void *data;
-        RID &rid;
-    };
-    // initialize Record
-
-    uint32_t calculateRecordSize(rec r) {
-        uint32_t size = 0;
-        for (int i = 0; i < r.num_records; i++) {
-            // Calculate size of each record and add it to the total size
-        }
-        return size;
-    }
+    //write slot_directory to page
+    memcpy(pageData, &slot_directory, sizeof(SlotDirectory));
     
-    void* readNBytes(int charFlag; const void* recData, int n) {
-        // charFlag 0 = int/real (4 bytes)
-        // charFlag 1 = varchar (4 bytes + strlen)
-        
-        if (charFlag == 0) {
-            void* buffer = new char[n]; // Allocate memory to store the read bytes
-
-            // Copy n bytes from recData into the buffer
-            memcpy(buffer, recData, n);
-
-            return buffer;
-        }
-        else {
-            const char* charData = static_cast<const char*>(recData);
-            char* buffer = new char[n]; // Allocate memory to store the read bytes
-
-            // Read n bytes
-            for (int i = 0; i < n; i++) {
-                buffer[i] = charData[i]; // Store the byte in the buffer
-            }
-
-            return buffer; // Return the buffer containing the read bytes
-        }
-    }
-
-    // this will not work as is because:
-        // 1) data* has n byte null indicators for y fields that im not accounting for 
-        // 2) readNBytes reads from the beginning of the stream each time so it's not 
-            // getting the proper data every time its called
-    // solution? combine readNBytes with createRecord. splitting them up actually puts 
-        // us at a disadvantage. We need access to where data* left off.
-    void createRecord(void) {
-        // loop through vector to grab all the data
-            for (auto i = 0; i < rd.size(); i++) {
-                if (rd.at(i).type != TypeVarChar) {
-                    // read 4 bytes from data* and then append it to list.
-                    list.push(readNBytes(0, data, 4));
-                } else {
-                    // read 4+strlen bytes from data if the type is char.
-                    list.push(readNBytes(1, data, 4+rd.at(i).length))
-                }
-            }
-    }
-
-    
-
-    protected:
-        // Constructor
-        Record(int num_records, unsigned null_indicators, vector<Attribute> &recordDescriptor, const void *data, RID &rid) {
-            num_records = num_records;
-            null_indicators = null_indicators;
-            vector<Attribute> &rd; 
-            const void *data = data;
-            RID &rid = rid;
-            recordList = {num_records, null_indicators}
-            
-        };                                   				
-        ~Record();
+    return 0;
 }
 
+unsigned RecordBasedFileManager::calculateRecordSize(const vector<Attribute> &recordDescriptor) {
+    unsigned recordSize = 0;
+    for (int i = 0; i < recordDescriptor.size(); i++) {
+        Attribute attr = recordDescriptor[i];
+        switch (attr.type)  {
+            //only add bytes to recordSize if not NULL
+            case TypeInt:
+                //4 bytes
+                recordSize += 4;
+                break;
+            case TypeReal:
+                //4 bytes
+                recordSize += 4;
+                break;
+            case TypeVarChar:
+                //length + name = (length + 4) bytes
+                recordSize += 4 + attr.length;
+        }
+        return recordSize;
+    }
 
+}
 
+SlotDirectory RecordBasedFileManager::getSlotDirectory(void *pageData) {
+    SlotDirectory slot_directory;
+    memcpy(&slot_directory, pageData, sizeof(SlotDirectory));
+    return slot_directory;
+}
 
+unsigned RecordBasedFileManager::getFreeSpace(void *pageData) {
+    unsigned totalRecordSpace = 0;
+    
+    SlotDirectory sd = getSlotDirectory(pageData);
+    
+    //HEADER = [SD][slot 1][slot 2][slot 3]...[slot n]
+    unsigned headerSpace = sizeof(SlotDirectory) + (sd.numSlots * sizeof(Slot));
 
-
+    //go through each slot and calculate space used by records
+    void *slotData = (char*)pageData + sizeof(SlotDirectory);
+    for (int i = 0; i < sd.numSlots; i++) {
+        Slot slot;
+        memcpy(&slot, slotData, sizeof(Slot));
+        totalRecordSpace += slot.size; 
+    }
+    
+    unsigned freeSpace = PAGE_SIZE - headerSpace - totalRecordSpace;
+    
+    return freeSpace;
+}
