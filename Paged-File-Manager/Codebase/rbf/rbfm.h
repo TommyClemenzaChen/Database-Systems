@@ -151,9 +151,11 @@ private:
   static PagedFileManager *_pf_manager;
 
   RC createRBPage(void *pageData);
+  bool isNullField(unsigned nullFieldByte, int index);
   void configureSlotDirectory(SlotDirectory &sd, unsigned slots, unsigned offset);
-  unsigned calculateRecordSize(const vector<Attribute> &recordDescriptor);
+  unsigned calculateRecordSize(const vector<Attribute> &recordDescriptor, const void* data);
   SlotDirectory getSlotDirectory(void *pageData);
+  Slot getSlot(const void *pageData, int slotNum);
   unsigned getFreeSpace(void *pageData);
   RC configureEmptySlot(unsigned freeSpace, unsigned totalDataSize, unsigned recordSize);
 };
