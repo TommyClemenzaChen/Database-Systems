@@ -74,7 +74,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
         sd = getSlotDirectory(pageData);
         freeSpace = getFreeSpace(pageData);
         
-        if (totalDataSize < freeSpace) {
+        if (totalDataSize <= freeSpace) {
             pageNum = i;
             pageFound = true;
             break;
@@ -86,10 +86,12 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
     if (!pageFound) {
         void *new_pageData = malloc(PAGE_SIZE);
         createRBPage(new_pageData);
-        pageData = new_pageData;
         sd = getSlotDirectory(new_pageData);
         freeSpace = getFreeSpace(new_pageData);
-        pageNum = fileHandle.getNumberOfPages();
+        pageNum = fileHandle.getNumberOfPages() - 1;
+
+        memcpy(pageData, new_pageData, PAGE_SIZE);
+        free(new_pageData);
     }
 
     //update slot directory of the page we're using
@@ -115,7 +117,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
 
     //set RID
     rid.pageNum = pageNum;
-    rid.slotNum = sd.numSlots-1;
+    rid.slotNum = sd.numSlots - 1;
     
 
     fileHandle.writePage(pageNum, pageData);
@@ -131,9 +133,14 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
 RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, void *data) {
     //read entire page
     void *pageData = malloc(PAGE_SIZE);
-    fileHandle.readPage(rid.pageNum, pageData);
+    if (fileHandle.readPage(rid.pageNum, pageData) != 0) {
+        return -1;
+    }
 
-    
+    SlotDirectory sd = getSlotDirectory(pageData);
+    cout << "sd: " << sd.numSlots << endl;
+    cout << "rid: " << rid.slotNum << endl;
+  
 
     //goto correct slot
     Slot slot = getSlot(pageData, rid.slotNum);
@@ -149,9 +156,20 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
 RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor, const void *data) {
     unsigned first_n_bytes = (unsigned)ceil(recordDescriptor.size() / 8.0);
 
-    unsigned nullFieldValue;
-    memcpy(&nullFieldValue, data, first_n_bytes);
+    vector<unsigned> nullFieldBytes;
     
+    for (int i = 0; i < first_n_bytes; i++) {
+        unsigned char byteValue;
+        memcpy(&byteValue, (char*)data + i, 1);
+        nullFieldBytes.push_back(byteValue);
+    }
+
+    cout << "null size: " << nullFieldBytes.size() << endl;
+
+    for (unsigned i : nullFieldBytes) {
+        cout << i <<  " ";
+    }
+
     //Attribute values
     int typeIntData;
     float typeRealData;
@@ -161,9 +179,14 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
     
     unsigned bytes_read = first_n_bytes;
 
+    unsigned byteIndex = 0;
     for (int i = 0; i < recordDescriptor.size(); i++) {
+        if (i != 0 && i % 8 == 0) {
+            byteIndex++;
+        }
         Attribute attr = recordDescriptor[i];
-        if (!isNullField(nullFieldValue, i)) {
+        cout << "null byte: " << nullFieldBytes[byteIndex] << endl;
+        if (!isNullField(nullFieldBytes[byteIndex], 0)) {
             switch (attr.type) {
                 case TypeInt:
                     memcpy(&typeIntData, (char*)data + bytes_read, 4);
@@ -192,7 +215,7 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
             }
         }
         else {
-            cout << attr.name << ": NULL";
+            cout << attr.name << ": NULL" << endl;
         }
     }
     
