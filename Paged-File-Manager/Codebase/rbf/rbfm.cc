@@ -132,35 +132,20 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
 RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, void *data) {
     //read entire page
     void *pageData = malloc(PAGE_SIZE);
-    fileHandle.readPage(rid.pageNum, pageData);
+    if (fileHandle.readPage(rid.pageNum, pageData) != 0) {
+        return -1;
+    }
+
+    SlotDirectory sd = getSlotDirectory(pageData);
+  
 
     //goto correct slot
-    Slot slot;
-    void *slotData = (char*)pageData + sizeof(SlotDirectory) + (rid.slotNum * sizeof(Slot));
-    memcpy(&slot, slotData, sizeof(Slot));
+    Slot slot = getSlot(pageData, rid.slotNum);
 
     void *recordData = (char*)pageData + slot.RO;
+    
     memcpy(data, recordData, slot.size);
 
-    free(pageData);
-
-    return 0;
-}
-
-RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor, const void *data) {
-cout << data << endl;
-    return 0;
-}
-
-RC RecordBasedFileManager::createRBPage(void *pageData) {
-    //create slot directory
-    SlotDirectory slot_directory;
-    slot_directory.numSlots = 0;
-    slot_directory.FSO = PAGE_SIZE;
-
-    //write slot_directory to page
-    memcpy(pageData, &slot_directory, sizeof(SlotDirectory));
-    
     return 0;
 }
 
@@ -175,6 +160,54 @@ void* readNBytes(const void* data, size_t& offset, size_t n) {
     offset += n;
 
     return buffer;
+}
+
+
+RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor, const void *data) {
+    unsigned first_n_bytes = (unsigned)ceil(recordDescriptor.size() / 8.0);
+
+    // read in bytesToRead bytes from *data and store it in null flags
+    unsigned nullFlags = static_cast<unsigned>(readNBytes(data, offset, bytesToRead));
+
+    //Attribute values
+    int typeIntData;
+    float typeRealData;
+    unsigned length;
+    char* typeStringData;
+    
+    for (int i = 0; i < recordDescriptor.size(); i++) {
+        Attribute attr = recordDescriptor[i];
+        if (!if (isNull(nullFlags, i))) {
+            switch (attr.type) {
+                case TypeInt:
+                    typeIntData = static_cast<int>(readNBytes(data, offset, 4));
+                    cout << attr.name << ": " << typeIntData << endl;
+                    break;
+                case TypeReal:
+                    typeRealData = (readNBytes(data, offset, 4));
+                    cout << attr.name << ": " << typeFloatData << endl;
+                    break;
+                case TypeVarChar:
+                    length = static_cast<unsigned>(readNBytes(data, offset, 4));
+                    typeStringData = static_cast<string>readNBytes(data, offset, length);
+                    cout << attr.name << ": " << typeStringData << endl;
+                    break;
+            }
+        } else cout << attr.name << ": NULL" << endl;
+    }
+    return 0;
+}
+
+RC RecordBasedFileManager::createRBPage(void *pageData) {
+    //create slot directory
+    SlotDirectory slot_directory;
+    slot_directory.numSlots = 0;
+    slot_directory.FSO = PAGE_SIZE;
+
+    //write slot_directory to page
+    memcpy(pageData, &slot_directory, sizeof(SlotDirectory));
+    
+    return 0;
 }
 
 unsigned RecordBasedFileManager::calculateRecordSize(const vector<Attribute> &recordDescriptor, void* data) {
