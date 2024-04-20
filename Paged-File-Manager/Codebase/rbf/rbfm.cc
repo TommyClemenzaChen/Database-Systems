@@ -1,4 +1,5 @@
 #include "rbfm.h"
+#include <cmath>
 
 RecordBasedFileManager* RecordBasedFileManager::_rbf_manager = 0;
 PagedFileManager* RecordBasedFileManager::_pf_manager = 0;
@@ -163,23 +164,55 @@ RC RecordBasedFileManager::createRBPage(void *pageData) {
     return 0;
 }
 
-unsigned RecordBasedFileManager::calculateRecordSize(const vector<Attribute> &recordDescriptor) {
+bool RecordBasedFileManager::isNull(unsigned null_flags, unsigned shift){
+    int correctedShift = 8 - shift;
+    return (1 << (8 - correctedShift)) & null_flags == (1 << (8 - correctedShift));
+}
+
+void* readNBytes(const void* data, size_t& offset, size_t n) {
+    void* buffer = new char[n];
+    memcpy(buffer, static_cast<const char*>(data) + offset, n);
+    offset += n;
+
+    return buffer;
+}
+
+unsigned RecordBasedFileManager::calculateRecordSize(const vector<Attribute> &recordDescriptor, void* data) {
     unsigned recordSize = 0;
+    size_t offset = 0;
+    int bytesToRead = ceil(&recordDescriptor.size()/8);
+    int strLen = 0;
+    
+    // isNull(unsigned null_flags, unsigned shift)
+    
+    // read in bytesToRead bytes from *data and store it in null flags
+    // cast to unsigned
+    unsigned null_flags = static_cast<unsigned>(readNBytes(data, offset, bytesToRead));
+
     for (int i = 0; i < recordDescriptor.size(); i++) {
+
+        if (isNull(null_flags, i)) continue;
+
         Attribute attr = recordDescriptor[i];
         switch (attr.type)  {
             //only add bytes to recordSize if not NULL
             case TypeInt:
-                //4 bytes
+                // 4 bytes
                 recordSize += 4;
+                // read in 4 bytes from the data stream
+                readNBytes(data, offset, 4);
                 break;
             case TypeReal:
                 //4 bytes
                 recordSize += 4;
+                // read in 4 bytes from the data stream
+                readNBytes(data, offset, 4);
                 break;
             case TypeVarChar:
-                //length + name = (length + 4) bytes
-                recordSize += 4 + attr.length;
+                // read in first 4 bytes from the data stream (will tell us strlen)
+                strLen = static_cast<int>(readNBytes(data, offset, 4)); // cast to int for calculating
+                readNBytes(data, offset, strLen); // actually read strlen bytes from the stream
+                recordSize += 4+strLen;
         }
         return recordSize;
     }
