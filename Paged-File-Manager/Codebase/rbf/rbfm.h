@@ -153,6 +153,7 @@ private:
   void* createRBPage();//creates a new slot directory for a page
   unsigned calculateRecordSize(const vector<Attribute> &recordDescriptor);
   SlotDirectory getSlotDirectory(void *pageData);
+  bool isNull(unsigned null_flags, unsigned shift);
 };
 
 #endif
