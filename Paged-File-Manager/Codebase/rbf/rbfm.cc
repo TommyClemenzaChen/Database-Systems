@@ -32,9 +32,9 @@ RC RecordBasedFileManager::createFile(const string &fileName) {
 
     //add page to new file
     FileHandle handle;
-    _pf_manager->openFile(fileName, handle);
+    openFile(fileName, handle);
     handle.appendPage(pageData);
-    _pf_manager->closeFile(handle);
+    closeFile(handle);
     
     free(pageData);
 
@@ -65,13 +65,25 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
     bool pageFound = false;
     unsigned pageNum;
 
-    SlotDirectory sd;
     unsigned freeSpace;
+
+    /*last page has enough space
+    unsigned lastPageNum = fileHandle.getNumberOfPages() - 1;
+    fileHandle.readPage(lastPageNum, pageData);
+    sd = getSlotDirectory(pageData);
+    freeSpace = getFreeSpace(pageData);
+    
+    if (totalDataSize <= freeSpace) {
+        pageNum = lastPageNum;
+        pageFound = true;
+    }
+    */
+
+    //look through each page
+
     for (int i = 0; i < fileHandle.getNumberOfPages(); i++) {
-        
         fileHandle.readPage(i, pageData);
         
-        sd = getSlotDirectory(pageData);
         freeSpace = getFreeSpace(pageData);
         
         if (totalDataSize <= freeSpace) {
@@ -81,23 +93,22 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
         }
     }
 
+
     
     //we didn't find page :(
     if (!pageFound) {
-        void *new_pageData = malloc(PAGE_SIZE);
+        void* new_pageData = malloc(PAGE_SIZE);
         createRBPage(new_pageData);
-        sd = getSlotDirectory(new_pageData);
-        freeSpace = getFreeSpace(new_pageData);
-        pageNum = fileHandle.getNumberOfPages() - 1;
-
+        pageNum = fileHandle.getNumberOfPages();
         memcpy(pageData, new_pageData, PAGE_SIZE);
         free(new_pageData);
     }
 
+    //UPDATING SlotDirectory 
+    SlotDirectory sd = getSlotDirectory(pageData);
+
     //update slot directory of the page we're using
     sd.FSO -= recordSize;
-
-    memcpy(pageData, &sd, sizeof(SlotDirectory));
 
     //add new slot (or find first empty?)
     Slot newSlot;
@@ -118,7 +129,9 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
     //set RID
     rid.pageNum = pageNum;
     rid.slotNum = sd.numSlots - 1;
-    
+
+
+    memcpy(pageData, &sd, sizeof(SlotDirectory));
 
     fileHandle.writePage(pageNum, pageData);
 
@@ -138,8 +151,6 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
     }
 
     SlotDirectory sd = getSlotDirectory(pageData);
-    cout << "sd: " << sd.numSlots << endl;
-    cout << "rid: " << rid.slotNum << endl;
   
 
     //goto correct slot
@@ -157,17 +168,11 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
     unsigned first_n_bytes = (unsigned)ceil(recordDescriptor.size() / 8.0);
 
     vector<unsigned> nullFieldBytes;
-    
+    unsigned char byte;
     for (int i = 0; i < first_n_bytes; i++) {
         unsigned char byteValue;
-        memcpy(&byteValue, (char*)data + i, 1);
-        nullFieldBytes.push_back(byteValue);
-    }
-
-    cout << "null size: " << nullFieldBytes.size() << endl;
-
-    for (unsigned i : nullFieldBytes) {
-        cout << i <<  " ";
+        memcpy(&byte, (char*)data + i, 1);
+        nullFieldBytes.push_back(byte);
     }
 
     //Attribute values
@@ -185,8 +190,7 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
             byteIndex++;
         }
         Attribute attr = recordDescriptor[i];
-        cout << "null byte: " << nullFieldBytes[byteIndex] << endl;
-        if (!isNullField(nullFieldBytes[byteIndex], 0)) {
+        if (!isFieldNull(nullFieldBytes[byteIndex], 0)) {
             switch (attr.type) {
                 case TypeInt:
                     memcpy(&typeIntData, (char*)data + bytes_read, 4);
@@ -235,7 +239,7 @@ RC RecordBasedFileManager::createRBPage(void *pageData) {
     return 0;
 }
 
-bool RecordBasedFileManager::isNullField(unsigned nullFieldValue, int i) {
+bool RecordBasedFileManager::isFieldNull(unsigned nullFieldValue, int i) {
     unsigned check = (1 << (8-i)) & nullFieldValue;
     if (check == (1 << (8-i))) {
         return true;
@@ -246,17 +250,23 @@ bool RecordBasedFileManager::isNullField(unsigned nullFieldValue, int i) {
 unsigned RecordBasedFileManager::calculateRecordSize(const vector<Attribute> &recordDescriptor, const void* data) {
     unsigned first_n_bytes = (unsigned)ceil(recordDescriptor.size() / 8.0);
 
-    vector<unsigned> nullFieldBytes(first_n_bytes);
-    memcpy(nullFieldBytes.data(), data, first_n_bytes);
+    vector<unsigned char> nullFieldBytes;
+    unsigned char byte;
+    for (int i = 0; i < first_n_bytes; i++) {
+        memcpy(&byte, (char*)data + i, 1);
+        nullFieldBytes.push_back(byte);
+    }
+    
+    unsigned byteIndex;
 
     unsigned bytes_read = first_n_bytes;
     unsigned length;
     for (int i = 0; i < recordDescriptor.size(); i++) {
-        if (i != 0 && i % 7 == 0) {
-            nullFieldBytes.erase(nullFieldBytes.begin());
+        if (i != 0 && i % 8 == 0) {
+            byteIndex++;
         }
         Attribute attr = recordDescriptor[i];
-        if(!isNullField(nullFieldBytes[0], i)) {
+        if(!isFieldNull(nullFieldBytes[byteIndex], i)) {
             switch (attr.type)  {
             //only add bytes to recordSize if not NULL
                 case TypeInt:
