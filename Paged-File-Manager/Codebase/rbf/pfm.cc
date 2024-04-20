@@ -16,7 +16,8 @@ PagedFileManager* PagedFileManager::instance()
 
 PagedFileManager::PagedFileManager()
 {
-
+    //create page directory
+    
 }
 
 
@@ -41,30 +42,34 @@ RC PagedFileManager::createFile(const string &fileName)
 RC PagedFileManager::destroyFile(const string &fileName)
 {
     struct stat buffer;
-    if(stat(fileName.c_str(), &buffer) == -1){
+    //file doesn't exist, nothing to remove
+    if(!stat(fileName.c_str(), &buffer) == 0){
         return -1;
     }
-    remove(fileName.c_str());
+    
+    if (remove(fileName.c_str()) != 0) {
+        return -1;
+    }
+    
     return 0;
 }
 
 
 RC PagedFileManager::openFile(const string &fileName, FileHandle &fileHandle)
 {
-    //check if file exists
+
     struct stat buffer;
-    if(stat(fileName.c_str(), &buffer) == -1) {
+    if(!stat(fileName.c_str(), &buffer) == -1) {
         return -1;
     }
 
-    //check if fileHandler exists for current file
     if (fileHandle.getFilePointer() != nullptr) {
         return -1;
     }
 
     //create file handler for current file
     FILE *fp = fopen(fileName.c_str(), "rb+");
-    if (fp == NULL) {
+    if (fp == nullptr) {
         return -1;
     }
 
@@ -108,7 +113,7 @@ FileHandle::~FileHandle()
 RC FileHandle::readPage(PageNum pageNum, void *data)
 {
     //check if page exists (-1 if false)
-    if (pageNum >= getNumberOfPages()) {
+    if (getNumberOfPages() < pageNum) {
         return -1;
     }
 
@@ -130,12 +135,12 @@ RC FileHandle::readPage(PageNum pageNum, void *data)
 // Create a new page if there is no space
 RC FileHandle::writePage(PageNum pageNum, const void *data)
 {
-    if (pageNum >= getNumberOfPages()) {
+    if (getNumberOfPages() < pageNum) {
         return -1;
     }
 
     //move cursor to correct page (start pos)
-    if (fseek(_fp, PAGE_SIZE * pageNum, SEEK_CUR) != 0) {
+    if (fseek(_fp, PAGE_SIZE * pageNum, SEEK_SET) != 0) {
         return -1;
     }
     
@@ -171,11 +176,20 @@ RC FileHandle::appendPage(const void *data)
 
 unsigned FileHandle::getNumberOfPages()
 {
-    //find total bytes
-    fseek(_fp, 0, SEEK_END);
-    int total_bytes = ftell(_fp);
+    //save current position
+    int saved_pos = ftell(_fp);
     
-    return total_bytes / PAGE_SIZE;
+    //travel back to start of file
+    fseek(_fp, 0, SEEK_SET);
+
+    //travel to end of file = total bytes
+    fseek(_fp, 0, SEEK_END);
+    int numPages = ftell(_fp) / PAGE_SIZE;
+
+    //travel back to saved position
+    fseek(_fp, saved_pos, SEEK_SET);
+    
+    return numPages;
 }
 
 
