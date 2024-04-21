@@ -1,22 +1,53 @@
 1. Basic information
-Team Number:
-CruzID of Submitter: 
-Student Name of Submitter: 
-Names of the other Team Members:
+Team Number: 6
+CruzID of Submitter: ljquirog
+Student Name of Submitter: Lola Quiroga
+Names of the other Team Members: Tommy Chen, Matthew Chen
 
 
 2. Internal Record Format
-- Describe your record format design, and explain how your design provide O(1) field access. If your design does not provide O(1) field access, just mention that you haven't implemented this feature.
-- Describe how you store a VARCHAR field.
-
+- We have not implemented a record struct or class to keep track of the Record fields. We store the data* stream directly into our page in insertRecord.
+- We did create a CalculateRecordSize() function that iterates through the recordDescriptor vector and simultaneously reads through the *data stream to calculate each record's size.
+- Because we don't have an internal Record structure, we do not have a mechanism to store a VARCHAR field specifically. We don't store record fields directly into a struct since we store the entire *data stream into each Page. 
+    - The distinction of a VARCHAR field vs INT/REAL field is used for calculations in CalculateRecordSize().
+    - Given the recordDescriptor vector's AttrType is TypeVarChar, CalculateRecordSize() checks the length of the string by reading in 4 bytes from the *data stream and then reading in strlen more bytes. Then it adds 4 + strlen to the total Record size and continues iterating through the recordDescriptor vector.
+- Record Insertion Procedure:
+    - Get the record's size
+    - Read through each page to see if there's enough free space for the record
+    - If a page with enough space was not found, append a new page and insert the record there.
+    - Update the Slot Directory with the new free space offset
+    - Create a new Slot struct with the SD's free space offset and record size as size
+    - 
+- We have not implemented O(1) field access in our record format design. 
 
 3. Page Format
-- Describe your page format design.
-
-
+- Slot Directory and Slots are stored at the beginning of the page and the records will be added from the end of the page.
+    - When initializing a page and slot directory, each Slot Directory's free space offset will be initialized to PAGE_SIZE
+    - When adding a new record, the SD's free space offset will be decremented by the record's size
+- SD struct:
+    - Number of slots 
+    - Free space offset
+- Slot struct:
+    - Size of record
+    - Record offset
+- For each record we insert into the page, we:
+    - Update the Slot Directory struct:
+        - Update the free space offset (SD) by:
+            - Subtracting record size (CalculateRecordSize()) from the existing free space offset
+        - Increment the number of slots by 1 
+    - Add a new Slot to the page:
+        - Use CalculateRecordSize() to get the size of the record
+        - Set the record offset to SD's free space offset
+        - Insert to free space offset of the page
 4. Implementation Detail
-- Be sure to supply additional pertinent implementation detail here.  You may lose credit if this section of the report is empty.
-
+- Helper functions
+    - calculateRecordSize() -- implementation explained in sections 2 and 3
+    - isFieldNull() -- uses the null flags from the *data stream to determine whether or not a given field in the recordDescriptor vector is NULL
+    - createRBPage() -- initializes a page with a slot directory, initializes free space offset to PAGE_SIZE
+    - getSlotDirectory() -- returns slot directory for a given page
+    - getSlot() -- gets a slot for a given page and slot number
+    - getFreeSpace() -- calculates the amount of free space given a page, using its freespace offset and the size of the size of the SD + amount of Slots
+- We had originally planned on implementing a Record directory with the record entry offsets pointing to each record entry (like Lecture #3 Slide 13) but decided against it because it was unnecessary for what this project called for. If we find this will be helpful for future projects, we will implement that record format design or create more helper functions to process the record entries.
 
 5. Other (optional)
 - Freely use this section to tell us about other things about your Project1 solution that may help us understand and grade your solution.
