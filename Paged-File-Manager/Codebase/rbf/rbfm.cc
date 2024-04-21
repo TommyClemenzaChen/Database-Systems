@@ -74,7 +74,8 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
         sd = getSlotDirectory(pageData);
         freeSpace = getFreeSpace(pageData);
         
-        if (totalDataSize < freeSpace) {
+        // changed
+        if (totalDataSize <= freeSpace) {
             pageNum = i;
             pageFound = true;
             break;
@@ -88,6 +89,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
         createRBPage(new_pageData);
         pageData = new_pageData;
         sd = getSlotDirectory(new_pageData);
+        
         freeSpace = getFreeSpace(new_pageData);
         pageNum = fileHandle.getNumberOfPages();
     }
@@ -131,7 +133,9 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
 RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, void *data) {
     //read entire page
     void *pageData = malloc(PAGE_SIZE);
-    fileHandle.readPage(rid.pageNum, pageData);
+    if(fileHandle.readPage(rid.pageNum, pageData) == -1){
+        return -1;
+    }
 
     
 
@@ -254,6 +258,7 @@ unsigned RecordBasedFileManager::calculateRecordSize(const vector<Attribute> &re
     return bytes_read;
 }
 
+
 SlotDirectory RecordBasedFileManager::getSlotDirectory(void *pageData) {
     SlotDirectory slot_directory;
     memcpy(&slot_directory, pageData, sizeof(SlotDirectory));
@@ -261,9 +266,11 @@ SlotDirectory RecordBasedFileManager::getSlotDirectory(void *pageData) {
 }
 
 Slot RecordBasedFileManager::getSlot(const void *pageData, int slotNum) {
+    // returns the slot
+    
     Slot slot;
-    void *slotData = (char*)pageData + sizeof(SlotDirectory) + (slotNum * sizeof(Slot));
-    memcpy(&slot, slotData, sizeof(Slot));
+    void *slotAddress = (char*)pageData + sizeof(SlotDirectory) + (slotNum * sizeof(Slot));
+    memcpy(&slot, slotAddress, sizeof(Slot));
 
     return slot;
 }

@@ -150,8 +150,13 @@ private:
   static RecordBasedFileManager *_rbf_manager;
   static PagedFileManager *_pf_manager;
 
+  // creates a slot directory
   RC createRBPage(void *pageData);
+
+  // checks if a current field is null
   bool isNullField(unsigned nullFieldByte, int index);
+
+  // 
   void configureSlotDirectory(SlotDirectory &sd, unsigned slots, unsigned offset);
   unsigned calculateRecordSize(const vector<Attribute> &recordDescriptor, const void* data);
   SlotDirectory getSlotDirectory(void *pageData);
