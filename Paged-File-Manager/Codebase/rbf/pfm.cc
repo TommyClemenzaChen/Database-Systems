@@ -43,7 +43,7 @@ RC PagedFileManager::destroyFile(const string &fileName)
 {
     struct stat buffer;
     //file doesn't exist, nothing to remove
-    if(!stat(fileName.c_str(), &buffer) == 0){
+    if(stat(fileName.c_str(), &buffer) == -1){
         return -1;
     }
     
@@ -59,7 +59,7 @@ RC PagedFileManager::openFile(const string &fileName, FileHandle &fileHandle)
 {
 
     struct stat buffer;
-    if(!stat(fileName.c_str(), &buffer) == -1) {
+    if(stat(fileName.c_str(), &buffer) == -1) {
         return -1;
     }
 
@@ -67,13 +67,12 @@ RC PagedFileManager::openFile(const string &fileName, FileHandle &fileHandle)
         return -1;
     }
 
-    //create file handler for current file
+    //set file handler for current file
     FILE *fp = fopen(fileName.c_str(), "rb+");
     if (fp == nullptr) {
         return -1;
     }
 
-    //set file handler
     fileHandle.setFilePointer(fp);
     return 0;
 }
@@ -113,7 +112,7 @@ FileHandle::~FileHandle()
 RC FileHandle::readPage(PageNum pageNum, void *data)
 {
     //check if page exists (-1 if false)
-    if (getNumberOfPages() < pageNum) {
+    if (pageNum >= getNumberOfPages()) {
         return -1;
     }
 
@@ -123,9 +122,6 @@ RC FileHandle::readPage(PageNum pageNum, void *data)
     }
 
     size_t bytes_read = fread(data, 1, PAGE_SIZE, _fp);
-    if (bytes_read < PAGE_SIZE) {
-        return -1;
-    }
     
     readPageCounter = readPageCounter + 1;
     return 0;
@@ -145,9 +141,6 @@ RC FileHandle::writePage(PageNum pageNum, const void *data)
     }
     
     size_t bytes_written = fwrite(data, 1, PAGE_SIZE, _fp);
-    if (bytes_written < PAGE_SIZE) {
-        return -1;
-    }
 
     fflush(_fp);
 
@@ -163,10 +156,7 @@ RC FileHandle::appendPage(const void *data)
         return -1;
     }
     size_t bytes_written = fwrite(data, 1, PAGE_SIZE, _fp);
-    if (bytes_written < PAGE_SIZE) {
-        return -1;
-    }
-
+  
     fflush(_fp);
     appendPageCounter = appendPageCounter + 1;
      
@@ -176,11 +166,20 @@ RC FileHandle::appendPage(const void *data)
 
 unsigned FileHandle::getNumberOfPages()
 {
-    //find total bytes
-    fseek(_fp, 0, SEEK_END);
-    int total_bytes = ftell(_fp);
+    //save current position
+    int saved_pos = ftell(_fp);
     
-    return total_bytes / PAGE_SIZE;
+    //travel back to start of file
+    fseek(_fp, 0, SEEK_SET);
+
+    //travel to end of file = total bytes
+    fseek(_fp, 0, SEEK_END);
+    int numPages = ftell(_fp) / PAGE_SIZE;
+
+    //travel back to saved position
+    fseek(_fp, saved_pos, SEEK_SET);
+    
+    return numPages;
 }
 
 
