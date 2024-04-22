@@ -287,6 +287,12 @@ unsigned RecordBasedFileManager::calculateRecordSize(const vector<Attribute> &re
     return bytes_read;
 }
 
+
+bool RecordBasedFileManager::isNull(unsigned null_flags, unsigned shift){
+    int correctedShift = 8 - shift;
+    return (1 << (8 - correctedShift)) & null_flags == (1 << (8 - correctedShift));
+}
+
 SlotDirectory RecordBasedFileManager::getSlotDirectory(void *pageData) {
     SlotDirectory slot_directory;
     memcpy(&slot_directory, pageData, sizeof(SlotDirectory));

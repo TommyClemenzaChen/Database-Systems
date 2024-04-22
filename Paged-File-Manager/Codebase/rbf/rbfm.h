@@ -158,6 +158,7 @@ private:
   Slot getSlot(const void *pageData, int slotNum);
   unsigned getFreeSpace(void *pageData);
   RC configureEmptySlot(unsigned freeSpace, unsigned totalDataSize, unsigned recordSize);
+
 };
 
 #endif
