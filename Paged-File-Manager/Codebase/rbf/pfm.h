@@ -51,7 +51,7 @@ public:
 
 
     FILE* getFilePointer();
-    FILE* setFilePointer(FILE* fp);
+    void setFilePointer(FILE* fp);
 
 private:
     FILE* _fp;

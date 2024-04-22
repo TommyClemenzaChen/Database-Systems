@@ -34,9 +34,11 @@ RC RecordBasedFileManager::createFile(const string &fileName) {
     FileHandle handle;
     openFile(fileName, handle);
     handle.appendPage(pageData);
-    closeFile(handle);
     
     free(pageData);
+    closeFile(handle);
+    
+    
 
     return 0;
 }
@@ -67,21 +69,20 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
 
     unsigned freeSpace;
 
-    /*last page has enough space
+    //last page has enough space
     unsigned lastPageNum = fileHandle.getNumberOfPages() - 1;
     fileHandle.readPage(lastPageNum, pageData);
-    sd = getSlotDirectory(pageData);
     freeSpace = getFreeSpace(pageData);
     
     if (totalDataSize <= freeSpace) {
         pageNum = lastPageNum;
         pageFound = true;
     }
-    */
+    
 
     //look through each page
 
-    for (int i = 0; i < fileHandle.getNumberOfPages(); i++) {
+    for (unsigned i = 0; i < fileHandle.getNumberOfPages(); i++) {
         fileHandle.readPage(i, pageData);
         
         freeSpace = getFreeSpace(pageData);
@@ -93,9 +94,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
         }
     }
 
-
-    
-    //we didn't find page :(
+    //we didn't find page 
     if (!pageFound) {
         void* new_pageData = malloc(PAGE_SIZE);
         createRBPage(new_pageData);
@@ -150,9 +149,6 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
         return -1;
     }
 
-    SlotDirectory sd = getSlotDirectory(pageData);
-  
-
     //goto correct slot
     Slot slot = getSlot(pageData, rid.slotNum);
 
@@ -161,6 +157,8 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
     
     memcpy(data, recordData, slot.size);
 
+    free(pageData);
+
     return 0;
 }
 
@@ -168,11 +166,10 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
     unsigned first_n_bytes = (unsigned)ceil(recordDescriptor.size() / 8.0);
 
     vector<unsigned> nullFieldBytes;
-    unsigned char byte;
-    for (int i = 0; i < first_n_bytes; i++) {
-        unsigned char byteValue;
-        memcpy(&byte, (char*)data + i, 1);
-        nullFieldBytes.push_back(byte);
+    unsigned char byteValue;
+    for (unsigned i = 0; i < first_n_bytes; i++) {
+        memcpy(&byteValue, (char*)data + i, 1);
+        nullFieldBytes.push_back(byteValue);
     }
 
     //Attribute values
@@ -185,12 +182,12 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
     unsigned bytes_read = first_n_bytes;
 
     unsigned byteIndex = 0;
-    for (int i = 0; i < recordDescriptor.size(); i++) {
+    for (unsigned i = 0; i < recordDescriptor.size(); i++) {
         if (i != 0 && i % 8 == 0) {
             byteIndex++;
         }
         Attribute attr = recordDescriptor[i];
-        if (!isFieldNull(nullFieldBytes[byteIndex], 0)) {
+        if (!isNull(nullFieldBytes[byteIndex], 0)) {
             switch (attr.type) {
                 case TypeInt:
                     memcpy(&typeIntData, (char*)data + bytes_read, 4);
@@ -239,8 +236,8 @@ RC RecordBasedFileManager::createRBPage(void *pageData) {
     return 0;
 }
 
-bool RecordBasedFileManager::isFieldNull(unsigned nullFieldValue, int i) {
-    unsigned check = (1 << (8-i)) & nullFieldValue;
+bool RecordBasedFileManager::isNull(unsigned char nullFieldValue, unsigned char i) {
+    unsigned char check = (1 << (8-i)) & nullFieldValue;
     if (check == (1 << (8-i))) {
         return true;
     }
@@ -250,23 +247,23 @@ bool RecordBasedFileManager::isFieldNull(unsigned nullFieldValue, int i) {
 unsigned RecordBasedFileManager::calculateRecordSize(const vector<Attribute> &recordDescriptor, const void* data) {
     unsigned first_n_bytes = (unsigned)ceil(recordDescriptor.size() / 8.0);
 
-    vector<unsigned char> nullFieldBytes;
+    vector<unsigned char> nullFieldBytes{};
     unsigned char byte;
-    for (int i = 0; i < first_n_bytes; i++) {
+    for (unsigned i = 0; i < first_n_bytes; i++) {
         memcpy(&byte, (char*)data + i, 1);
         nullFieldBytes.push_back(byte);
     }
     
-    unsigned byteIndex;
+    unsigned byteIndex = 0;
 
     unsigned bytes_read = first_n_bytes;
     unsigned length;
-    for (int i = 0; i < recordDescriptor.size(); i++) {
+    for (unsigned i = 0; i < recordDescriptor.size(); i++) {
         if (i != 0 && i % 8 == 0) {
             byteIndex++;
         }
         Attribute attr = recordDescriptor[i];
-        if(!isFieldNull(nullFieldBytes[byteIndex], i)) {
+        if(!isNull(nullFieldBytes[byteIndex], i)) {
             switch (attr.type)  {
             //only add bytes to recordSize if not NULL
                 case TypeInt:
@@ -285,12 +282,6 @@ unsigned RecordBasedFileManager::calculateRecordSize(const vector<Attribute> &re
         }
     }
     return bytes_read;
-}
-
-
-bool RecordBasedFileManager::isNull(unsigned null_flags, unsigned shift){
-    int correctedShift = 8 - shift;
-    return (1 << (8 - correctedShift)) & null_flags == (1 << (8 - correctedShift));
 }
 
 SlotDirectory RecordBasedFileManager::getSlotDirectory(void *pageData) {
