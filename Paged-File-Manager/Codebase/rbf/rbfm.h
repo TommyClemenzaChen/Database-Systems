@@ -113,8 +113,8 @@ public:
   RC insertRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, RID &rid);
 
   RC readRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, void *data);
-  
-  // This method will be mainly used for debugging/testing. 
+
+  // This method will be mainly used for debugging/testing.
   // The format is as follows:
   // field1-name: field1-value  field2-name: field2-value ... \n
   // (e.g., age: 24  height: 6.1  salary: 9000
@@ -151,13 +151,22 @@ private:
   static PagedFileManager *_pf_manager;
 
   RC createRBPage(void *pageData);
-  bool isFieldNull(unsigned nullFieldByte, int index);
-  void configureSlotDirectory(SlotDirectory &sd, unsigned slots, unsigned offset);
+
   unsigned calculateRecordSize(const vector<Attribute> &recordDescriptor, const void* data);
+ 
+  //Get methods
   SlotDirectory getSlotDirectory(void *pageData);
   Slot getSlot(const void *pageData, int slotNum);
   unsigned getFreeSpace(void *pageData);
-  RC configureEmptySlot(unsigned freeSpace, unsigned totalDataSize, unsigned recordSize);
+  
+  //Helper Functions
+  bool isNull(unsigned char nullFieldValue, unsigned char i);
+
+
+
+ 
+ 
+
 
 };
 

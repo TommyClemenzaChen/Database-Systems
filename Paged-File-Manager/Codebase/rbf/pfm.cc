@@ -121,7 +121,7 @@ RC FileHandle::readPage(PageNum pageNum, void *data)
         return -1;
     }
 
-    size_t bytes_read = fread(data, 1, PAGE_SIZE, _fp);
+    fread(data, 1, PAGE_SIZE, _fp);
     
     readPageCounter = readPageCounter + 1;
     return 0;
@@ -140,7 +140,7 @@ RC FileHandle::writePage(PageNum pageNum, const void *data)
         return -1;
     }
     
-    size_t bytes_written = fwrite(data, 1, PAGE_SIZE, _fp);
+    fwrite(data, 1, PAGE_SIZE, _fp);
 
     fflush(_fp);
 
@@ -152,10 +152,14 @@ RC FileHandle::writePage(PageNum pageNum, const void *data)
 
 RC FileHandle::appendPage(const void *data)
 {
+    if (_fp == nullptr) {
+        return -1;
+    }
+    
     if (fseek(_fp, 0, SEEK_END) != 0) {
         return -1;
     }
-    size_t bytes_written = fwrite(data, 1, PAGE_SIZE, _fp);
+    fwrite(data, 1, PAGE_SIZE, _fp);
   
     fflush(_fp);
     appendPageCounter = appendPageCounter + 1;
@@ -196,6 +200,6 @@ FILE* FileHandle::getFilePointer() {
     return _fp;
 }
 
-FILE* FileHandle::setFilePointer(FILE* fp) {
+void FileHandle::setFilePointer(FILE* fp) {
     _fp = fp;
 }
