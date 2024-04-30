@@ -211,6 +211,47 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
     return SUCCESS;
 }
 
+  RC RecordBasedFileManager::deleteRecord (FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid){
+    void * pageData = malloc(PAGE_SIZE);
+    if (fileHandle.readPage(rid.pageNum, pageData))
+        return RBFM_READ_FAILED;
+    
+    // Checking if slot id exisits
+    SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(pageData);
+    if(slotHeader.recordEntriesNumber <= rid.slotNum)
+        return RBFM_SLOT_DN_EXIST;
+
+    // gets the slot record 
+    SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
+
+    // copying the data that will overrite the deleted record
+    void * dataAddress = (char *)pageData + recordEntry.offset;
+    memcpy(dataAddress, (char *)dataAddress - recordEntry.length, recordEntry.offset - recordEntry.length - slotHeader.freeSpaceOffset);
+
+    // updating slot header
+    slotHeader.freeSpaceOffset = slotHeader.freeSpaceOffset + recordEntry.length;
+    memcpy(pageData, &slotHeader, sizeof(SlotDirectoryHeader));
+
+    recordEntry.length = 0;
+    recordEntry.offset = -1;
+
+    // updating slot
+    void * recordAddress = (char *)pageData + sizeof(SlotDirectory) + (rid.slotNum * sizeof(SlotDirectoryRecordEntry) - 1);
+    memcpy(recordAddress, &recordEntry, sizeof(SlotDirectoryRecordEntry));
+
+
+    fileHandle.writePage(rid.pageNum, pageData);
+
+
+    free(pageData);
+    return SUCCESS;
+
+    
+
+    
+  }
+
+
 SlotDirectoryHeader RecordBasedFileManager::getSlotDirectoryHeader(void * page)
 {
     // Getting the slot directory header.
@@ -447,3 +488,5 @@ void RecordBasedFileManager::setRecordAtOffset(void *page, unsigned offset, cons
         header_offset += sizeof(ColumnOffset);
     }
 }
+
+
