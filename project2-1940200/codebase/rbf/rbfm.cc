@@ -211,6 +211,55 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
     return SUCCESS;
 }
 
+  // Assume the RID does not change after an update
+RecordBasedFileManager::RC updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const RID &rid) {
+    // Gets the size of the record.
+    unsigned newRecordSize = getRecordSize(recordDescriptor, data);
+    
+    void * pageData = malloc(PAGE_SIZE);
+    if (fileHandle.readPage(rid.pageNum, pageData))
+        return RBFM_READ_FAILED;
+    
+    // Checking if slot id exisits
+    SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(pageData);
+    if(slotHeader.recordEntriesNumber <= rid.slotNum)
+        return RBFM_SLOT_DN_EXIST;
+
+    // gets the slot record 
+    SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
+
+    unsigned OGRecordSize = recordEntry.length;
+
+    // Case 1: if recordSize == newRecordSize, overwrite the record with the new data
+    if (OGRecordSize == newRecordSize) {
+        // copying the data that will overrite the deleted record
+        void * dataAddress = (char *)pageData + recordEntry.offset;
+        memcpy(dataAddress, data, newRecordSize);
+
+        // write the updated page back to the file
+        if (fileHandle.writePage(i, pageData))
+            return RBFM_WRITE_FAILED;
+    }
+
+
+    // Loop through RBF and find rid that matches in the slot directory
+
+    // Once the rid is found, calculate the recordSize of that rid
+    // Case 1: if recordSize == newRecordSize
+        //
+    // Case 2: if newRecordSize < recordSize
+        // 
+    // Case 3: if newRecordSize > recordSize
+        // Case 3.1: it fits on the same page
+        // Case 3.2: it doesn't fit on the same page
+            // Insert record onto new page (call insertRecord?)
+            // Forward the original offset and pageid to the new record
+            
+    free(pageData);
+    return RBFM_UPDATE_FAILED;
+}
+
+
 SlotDirectoryHeader RecordBasedFileManager::getSlotDirectoryHeader(void * page)
 {
     // Getting the slot directory header.
@@ -269,6 +318,7 @@ unsigned RecordBasedFileManager::getRecordSize(const vector<Attribute> &recordDe
 
     // Offset into *data. Start just after the null indicator
     unsigned offset = nullIndicatorSize;
+
     // Running count of size. Initialize it to the size of the header
     unsigned size = sizeof (RecordLength) + (recordDescriptor.size()) * sizeof(ColumnOffset) + nullIndicatorSize;
 
