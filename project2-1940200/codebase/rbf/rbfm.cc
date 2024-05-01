@@ -212,7 +212,7 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
 }
 
   // Assume the RID does not change after an update
-RecordBasedFileManager::RC updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const RID &rid) {
+RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const RID &rid) {
     // Gets the size of the record.
     unsigned newRecordSize = getRecordSize(recordDescriptor, data);
     
@@ -230,8 +230,13 @@ RecordBasedFileManager::RC updateRecord(FileHandle &fileHandle, const vector<Att
 
     unsigned OGRecordSize = recordEntry.length;
 
+    // TODO: Make switch statements instead of if-else ladder
+    // TODO: Forwarding!!! How to detect an already forwarded address and change multiple forwarded addresses
+
+    // if (recordEntry.length < 0 && recordEntry.offset < 0), then its already been forwarded and you have to redirect the next address to it
+
     // Case 1: if recordSize == newRecordSize, overwrite the record with the new data
-    if (OGRecordSize == newRecordSize) {
+    if (newRecordSize == OGRecordSize) {
         // copying the data that will overrite the deleted record
         void * dataAddress = (char *)pageData + recordEntry.offset;
         memcpy(dataAddress, data, newRecordSize);
@@ -240,23 +245,31 @@ RecordBasedFileManager::RC updateRecord(FileHandle &fileHandle, const vector<Att
         if (fileHandle.writePage(i, pageData))
             return RBFM_WRITE_FAILED;
     }
-
-
-    // Loop through RBF and find rid that matches in the slot directory
-
-    // Once the rid is found, calculate the recordSize of that rid
-    // Case 1: if recordSize == newRecordSize
-        //
     // Case 2: if newRecordSize < recordSize
-        // 
+    if (newRecordSize < OGRecordSize) {
+        // overwrite old record size and update slot offset, slot length
+        recordEntry.length = newRecordSize; // update slot length
+        // update slot offset
+        // ???
+        // memcpy the new record into the page
+        void * dataAddress = (char *)pageData + recordEntry.offset;
+        memcpy(dataAddress, data, newRecordSize);
+    }
     // Case 3: if newRecordSize > recordSize
+    if (newRecordSize > OGRecordSize) {
+        // Find how much free space there is ON the page
+        // if free space on page <= newRecordSize, call insertRecord()
+            // Case 3.1 -- it fits on the same page
+        // if there is no free space on the page, find a new page and FORWARD IT to the next page
+
+    }
         // Case 3.1: it fits on the same page
         // Case 3.2: it doesn't fit on the same page
             // Insert record onto new page (call insertRecord?)
             // Forward the original offset and pageid to the new record
             
     free(pageData);
-    return RBFM_UPDATE_FAILED;
+    return SUCCESS;
 }
 
 
