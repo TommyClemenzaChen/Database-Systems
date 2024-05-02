@@ -2,6 +2,7 @@
 #include "rm.h"
 
 RelationManager* RelationManager::_rm = 0;
+RecordBasedFileManager* RelationManager::_rbfm = 0;
 
 RelationManager* RelationManager::instance()
 {
@@ -22,11 +23,52 @@ RelationManager::~RelationManager()
 {
 }
 
+//Helper Functions
+RC RelationManager::validConfigTables() {
+    if (_rm->tables.empty() || _rm->columns.empty()) {
+        return -1;
+    }
+
+    void *fileData;
+    Table tempTable;
+    for (unsigned i = 0; i < _rm->tables.size(); i++) {
+        fread(fileData, sizeof(Table), 1, _tD);
+        memcpy(&tempTable, (char*)fileData + i * sizeof(Table), sizeof(Table));
+
+        if (tempTable.tableID != _rm->tables[i].tableID
+            || tempTable.tableName.compare(_rm->tables[i].tableName) != 0
+            || tempTable.fileName.compare(_rm->tables[i].fileName) != 0) {
+                
+                return -1;
+        }
+    }
+
+    Column tempCol;
+    for (unsigned i = 0; i < _rm->columns.size(); i++) {
+        fread(fileData, sizeof(Column), 1, _cD);
+        memcpy(&tempCol, (char*)fileData + i * sizeof(Column), sizeof(Column));
+
+        if (tempCol.tableID != _rm->columns[i].tableID
+            || tempCol.columnName.compare(_rm->columns[i].columnName) != 0
+            || tempCol.columnType != _rm->columns[i].columnType
+            || tempCol.columnLength != _rm->columns[i].columnLength
+            || tempCol.columnPosition != _rm->columns[i].columnPosition) {
+
+                return -1;
+        }
+    }
+
+
+    return 0;
+}
+
+
+
 RC RelationManager::createCatalog()
 {
     //check if config tables exist
-    if (validConfigTables()) {
-        return 0;
+    if (validConfigTables() != 0) {
+        return -1;
     }
 
     //Tables
@@ -34,9 +76,9 @@ RC RelationManager::createCatalog()
     _rm->tables.push_back({2, "Columns", "Columns"});
 
     //write data to new Tables.tbl file
-    FILE *tF = fopen("Tables.tbl", "wb");
+    _tD = fopen("Tables.tbl", "wb");
     for (int i = 0; i < _rm->tables.size(); i++) {
-        fwrite(&tables[i], sizeof(Table), 1, tF);
+        fwrite(&tables[i], sizeof(Table), 1, _tD);
     }
     
     //Columns
@@ -50,10 +92,13 @@ RC RelationManager::createCatalog()
     _rm->columns.push_back({2, "column-position", TypeInt, 4, 5});
 
     //write data to new Columns.tbl file
-    FILE *cF = fopen("Columns.tbl", "wb");
+    _cD = fopen("Columns.tbl", "wb");
     for (int i = 0; i < _rm->columns.size(); i++) {
-        fwrite(&columns[i], sizeof(Column), 1, cF);
+        fwrite(&columns[i], sizeof(Column), 1, _cD);
     }
+
+
+    return validConfigTables();  //should return 0
 }
 
 RC RelationManager::deleteCatalog()
@@ -115,11 +160,6 @@ RC RelationManager::scan(const string &tableName,
       RM_ScanIterator &rm_ScanIterator)
 {
     return -1;
-}
-
-//Helper Functions
-bool RelationManager::validConfigTables() {
-    
 }
 
 

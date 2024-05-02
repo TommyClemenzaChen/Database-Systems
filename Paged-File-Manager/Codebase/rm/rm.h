@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <cstring>
 
 #include "../rbf/rbfm.h"
 
@@ -76,6 +77,9 @@ public:
       RM_ScanIterator &rm_ScanIterator);
 
 
+  //Helper Functions
+  RC validConfigTables();
+
 protected:
   RelationManager();
   ~RelationManager();
@@ -86,6 +90,9 @@ private:
   
   vector<Table> tables;
   vector<Column> columns;
+
+  FILE *_tD;
+  FILE *_cD;
   
 };
 
