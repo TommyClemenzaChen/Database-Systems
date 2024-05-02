@@ -25,13 +25,13 @@ public:
 
 typedef struct {
   int tableID;
-  string tableName;
-  string fileName;
+  char tableName[51];
+  char fileName[51];
 } Table;
 
 typedef struct {
   int tableID;
-  string columnName;
+  char columnName[51];
   int columnType;
   int columnLength;
   int columnPosition;

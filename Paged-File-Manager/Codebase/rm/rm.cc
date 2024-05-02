@@ -1,5 +1,6 @@
-
 #include "rm.h"
+#include <iostream>
+#include <sys/stat.h>
 
 RelationManager* RelationManager::_rm = 0;
 RecordBasedFileManager* RelationManager::_rbfm = 0;
@@ -16,6 +17,11 @@ RelationManager::RelationManager()
 {
     //create RBFM instance
     _rbfm = RecordBasedFileManager::instance();
+    _tD = fopen("Tables.tbl", "wb+");
+    _cD = fopen("Columns.tbl", "wb+");
+
+    fclose(_tD);
+    fclose(_cD);
 
 }
 
@@ -25,78 +31,99 @@ RelationManager::~RelationManager()
 
 //Helper Functions
 RC RelationManager::validConfigTables() {
-    if (_rm->tables.empty() || _rm->columns.empty()) {
+    rewind(_tD);
+    rewind(_cD);
+
+    if (tables.empty() || columns.empty()) {
+        cout << "empty";
         return -1;
     }
 
-    void *fileData;
-    Table tempTable;
-    for (unsigned i = 0; i < _rm->tables.size(); i++) {
-        fread(fileData, sizeof(Table), 1, _tD);
-        memcpy(&tempTable, (char*)fileData + i * sizeof(Table), sizeof(Table));
+    struct stat tsb;
+    stat("Tables.tbl", &tsb);
 
-        if (tempTable.tableID != _rm->tables[i].tableID
-            || tempTable.tableName.compare(_rm->tables[i].tableName) != 0
-            || tempTable.fileName.compare(_rm->tables[i].fileName) != 0) {
+    void *tablesData = malloc(tsb.st_size);
+    fread(tablesData, 1, tsb.st_size, _tD);
+
+    Table tempTable;
+    for (unsigned i = 0; i < tables.size(); i++) {
+        
+        memcpy(&tempTable, (char*)tablesData + i * sizeof(Table), sizeof(Table));
+
+        if (tempTable.tableID != tables[i].tableID
+            || strcmp(tempTable.tableName, tables[i].tableName) != 0
+            || strcmp(tempTable.fileName, tables[i].fileName) != 0) {
                 
                 return -1;
         }
+        
+        
+       
     }
+   
+    struct stat csb;
+    stat("Columns.tbl", &csb);
+
+    void *colData = malloc(csb.st_size);
+    fread(colData, 1, csb.st_size, _cD);
 
     Column tempCol;
-    for (unsigned i = 0; i < _rm->columns.size(); i++) {
-        fread(fileData, sizeof(Column), 1, _cD);
-        memcpy(&tempCol, (char*)fileData + i * sizeof(Column), sizeof(Column));
+    for (unsigned i = 0; i < columns.size(); i++) {
+        memcpy(&tempCol, (char*)colData + i * sizeof(Column), sizeof(Column));
 
-        if (tempCol.tableID != _rm->columns[i].tableID
-            || tempCol.columnName.compare(_rm->columns[i].columnName) != 0
-            || tempCol.columnType != _rm->columns[i].columnType
-            || tempCol.columnLength != _rm->columns[i].columnLength
-            || tempCol.columnPosition != _rm->columns[i].columnPosition) {
-
+        if (tempCol.tableID != columns[i].tableID
+            || strcmp(tempCol.columnName, columns[i].columnName) != 0
+            || tempCol.columnType != columns[i].columnType
+            || tempCol.columnLength != columns[i].columnLength
+            || tempCol.columnPosition != columns[i].columnPosition) {
+                cout << "bruhh2" << endl;
                 return -1;
         }
     }
 
+    free(tablesData);
+    free(colData);
+    
+    fclose(_tD);
+    fclose(_cD);
+    
 
+    
     return 0;
 }
 
-
-
 RC RelationManager::createCatalog()
 {
-    //check if config tables exist
-    if (validConfigTables() != 0) {
-        return -1;
-    }
-
+    
     //Tables
-    _rm->tables.push_back({1, "Tables", "Tables"});
-    _rm->tables.push_back({2, "Columns", "Columns"});
+    tables.push_back({1, "Tables", "Tables"});
+    tables.push_back({2, "Columns", "Columns"});
 
-    //write data to new Tables.tbl file
-    _tD = fopen("Tables.tbl", "wb");
-    for (int i = 0; i < _rm->tables.size(); i++) {
-        fwrite(&tables[i], sizeof(Table), 1, _tD);
+    for (const auto& table : tables) {
+        fwrite(&table, sizeof(Table), 1, _tD);
     }
     
-    //Columns
-    _rm->columns.push_back({1, "table-id", TypeInt, 4, 1});
-    _rm->columns.push_back({1, "table-name", TypeVarChar, 50, 2});
-    _rm->columns.push_back({1, "file-name", TypeVarChar, 50, 3});
-    _rm->columns.push_back({2, "table-id", TypeInt, 4, 1});
-    _rm->columns.push_back({2, "column-name", TypeVarChar, 50, 2});
-    _rm->columns.push_back({2, "column-type", TypeInt, 4, 3});
-    _rm->columns.push_back({2, "column-length", TypeInt, 4, 4});
-    _rm->columns.push_back({2, "column-position", TypeInt, 4, 5});
 
-    //write data to new Columns.tbl file
-    _cD = fopen("Columns.tbl", "wb");
-    for (int i = 0; i < _rm->columns.size(); i++) {
-        fwrite(&columns[i], sizeof(Column), 1, _cD);
+    fflush(_tD);
+
+    //Columns
+    columns.push_back({1, "table-id", TypeInt, 4, 1});
+    columns.push_back({1, "table-name", TypeVarChar, 50, 2});
+    columns.push_back({1, "file-name", TypeVarChar, 50, 3});
+    columns.push_back({2, "table-id", TypeInt, 4, 1});
+    columns.push_back({2, "column-name", TypeVarChar, 50, 2});
+    columns.push_back({2, "column-type", TypeInt, 4, 3});
+    columns.push_back({2, "column-length", TypeInt, 4, 4});
+    columns.push_back({2, "column-position", TypeInt, 4, 5});
+
+    //write data to Columns.tbl file
+    
+    for (const auto& col : columns) {
+        fwrite(&col, sizeof(Column), 1, _cD);
     }
 
+    
+    fflush(_cD);
 
     return validConfigTables();  //should return 0
 }
@@ -108,8 +135,40 @@ RC RelationManager::deleteCatalog()
 }
 
 RC RelationManager::createTable(const string &tableName, const vector<Attribute> &attrs)
-{
-    return -1;
+{   
+
+
+    FILE *fd = fopen(tableName.c_str(), "wb+");
+
+    Table newTable;
+    strcpy(newTable.tableName, tableName.c_str());
+    strcpy(newTable.fileName, tableName.c_str());
+    newTable.tableID = tables.size() + 1;
+    
+    fwrite(&newTable, sizeof(Table), 1, _tD);
+
+    //create a column for each attribute
+    for (int i = 0; i < attrs.size(); i++) {
+        Column newColumn;
+        strcpy(newColumn.columnName, attrs[i].name.c_str());
+        newColumn.tableID = tables.size() + 1;
+        newColumn.columnType = attrs[i].type;
+        newColumn.columnLength = attrs[i].length;
+        newColumn.columnPosition = i + 1;
+        
+        fwrite(&newColumn, sizeof(Column), 1, _cD);
+        fwrite(&newColumn, sizeof(Column), 1, fd);
+    }
+
+    fflush(_tD);
+    fflush(_cD);
+    fflush(fd);
+
+    fclose(_tD);
+    fclose(_cD);
+    fclose(fd);
+
+    return 0;
 }
 
 RC RelationManager::deleteTable(const string &tableName)
@@ -119,7 +178,35 @@ RC RelationManager::deleteTable(const string &tableName)
 
 RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &attrs)
 {
-    return -1;
+    struct stat tsb;
+    if (stat(tableName.c_str(), &tsb) != 0) {
+        cout << "ended here" << endl;
+        return -1;
+    }
+
+    FILE *fd = fopen(tableName.c_str(), "rb");
+
+    void *tableData = malloc(tsb.st_size);
+    
+    
+    fread(tableData, 1, tsb.st_size, fd);
+
+    
+    Column col;
+    
+
+    
+        //extract column
+        memcpy(&col, (char*)tableData, sizeof(Column));
+        cout << col.columnName << " " << col.columnType << " " << col.columnLength << endl;
+/*
+        //extract attributes
+        Attribute attr = {col.columnName, col.columnType, col.columnLength};
+    
+        
+*/
+    return 0;
+    
 }
 
 RC RelationManager::insertTuple(const string &tableName, const void *data, RID &rid)
