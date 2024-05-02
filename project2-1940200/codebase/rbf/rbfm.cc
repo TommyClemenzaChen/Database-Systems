@@ -232,8 +232,7 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
 
     // TODO: Make switch statements instead of if-else ladder
     // TODO: Forwarding!!! How to detect an already forwarded address and change multiple forwarded addresses
-
-    // if (recordEntry.length < 0 && recordEntry.offset < 0), then its already been forwarded and you have to redirect the next address to it
+        // if (recordEntry.length < 0 && recordEntry.offset < 0), then its already been forwarded and you have to redirect the next address to it
 
     // Case 1: if recordSize == newRecordSize, overwrite the record with the new data
     if (newRecordSize == OGRecordSize) {
@@ -253,14 +252,24 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
         // ???
         // memcpy the new record into the page
         void * dataAddress = (char *)pageData + recordEntry.offset;
-        memcpy(dataAddress, data, newRecordSize);
+        memcpy(dataAddress, data, newRecordSize); // fix this to make sense
     }
+
+    // Calculate how much free space there is ON the page
+    bool onPage = getPageFreeSpaceSize(pageData) >= sizeof(recordEntry) + recordSize;
+
     // Case 3: if newRecordSize > recordSize
     if (newRecordSize > OGRecordSize) {
-        // Find how much free space there is ON the page
-        // if free space on page <= newRecordSize, call insertRecord()
+        // Case 3.1 -- there is space on the page    
+        if (onPage) {
+            recordEntry.length = newRecordSize;
+            // recordEntry.offset = ?
+            // insert record on the same page
+        }
+    }
+        // if free space on page <= newRecordSize, 
             // Case 3.1 -- it fits on the same page
-        // if there is no free space on the page, find a new page and FORWARD IT to the next page
+        // if there is no free space on the page, find a new page and FORWARD IT to the next page!!
 
     }
         // Case 3.1: it fits on the same page
