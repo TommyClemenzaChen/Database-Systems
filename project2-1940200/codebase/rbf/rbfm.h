@@ -165,6 +165,7 @@ private:
   static PagedFileManager *_pf_manager;
 
   // Private helper methods
+  RC insertRecordOnPage(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const void *pageData, RID &rid);
 
   void newRecordBasedPage(void * page);
 
