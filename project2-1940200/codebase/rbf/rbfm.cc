@@ -256,10 +256,11 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
     unsigned OGRecordSize = recordEntry.length;
 
     void * pageData = malloc(PAGE_SIZE);
-    
-    // create an empty pageData to pass in later?
+    void * newPageData = malloc(PAGE_SIZE);
+    void * forwardPageData = malloc(PAGE_SIZE);
+
     if (fileHandle.readPage(rid.pageNum, pageData)) return RBFM_READ_FAILED;
-        
+
     // Checking if slot id exisits
     SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(pageData);
     if(slotHeader.recordEntriesNumber <= rid.slotNum) return RBFM_SLOT_DN_EXIST;
@@ -276,7 +277,6 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
     // Flag if recordEntry has already been forwarded (if offset & length are both negative)
     bool isForward = (recordEntry.length < 0) && (recordEntry.offset < 0);
     
-
     // TODO: Make switch statements instead of if-else ladder
     
     // Case 1: if recordSize == newRecordSize, overwrite the record with the new data
@@ -292,7 +292,6 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
     // Case 2: if newRecordSize < recordSize
     if (newRecordSize < OGRecordSize) {
         // overwrite old record size and update slot offset, slot length
-        recordEntry.length = newRecordSize; // update slot length
         deleteRecord(&fileHandle, &recordDescriptor, const RID &rid); // delete record
         insertRecordOnPage(&fileHandle, &recordDescriptor, *data, *pageData, &rid); // insert the smaller record on the same page and update rid
     }
@@ -302,37 +301,40 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
         if (onPage) {
             deleteRecord(&fileHandle, &recordDescriptor, const RID &rid); // delete record
             insertRecordOnPage(&fileHandle, &recordDescriptor, *data, *pageData, &rid); // insert the larger record on the same page and update rid
-            recordEntry.length = newRecordSize;
         } else { // Case 3.2 -- it doesn't fit on the same page
-            // find a new page to insert it on
-            // forward it to the new page
             deleteRecord(&fileHandle, &recordDescriptor, const RID &rid); // delete record
             RID newRid; // initialize empty rid for new insert record rid
-                                                                // change pageData so its not the same pageData as the one we're calling in this function
-            insertRecord(&fileHandle, &recordDescriptor, *data, *pageData, &newRid);// call insert record
+            insertRecord(&fileHandle, &recordDescriptor, *data, *newPageData, &newRid);// call insert record
             
-                                                        // newRid.pageNum does NOT point to the page that the new record is at... so how would i get that?
-            newRecordEntry = getSlotDirectoryRecordEntry(newRid.pageNum, newRid.slotNum); // get new recordEntry of record that was inserted on page
             // Set the OG recordEntry's length and offset as both negative to "flag" that the record has been forwarded
             // if page already forwarded, go to the forwarded record and change its len and offset to 0 and -1 to flag that record has been forwarded 
-                // -- should we deleteRecord as well?
-            if (isForward) {
-                // go to the forwarded rid to change it
-                uint32_t forwardedRecordLength = recordEntry.length * -1; // make it positive so you can access the actual address
-                int32_t forwardedRecordOffset = recordEntry.offset * -1;
                 
-                // what page is the forwarded record pointing to? how do we know?
+            if (isForward) {
+                // call deleteRecord on the forwarded page
+                // go to the forwarded rid to change it
+                RID forwardedRid; 
+                forwardedRid.pageNum = rid.length*-1; 
+                forwardedRid.slotNum = rid.offset*-1;
 
-                // flag the previously forwarded record to 0 and -1 to show that it is no longer avail
-                forwardedRecordLength = 0;
-                forwardedRecordOffset = -1;
+                // read the page + get page entry
+                if (fileHandle.readPage(forwardedRid.pageNum, forwardPageData)) return RBFM_READ_FAILED;
+                forwardedRecordEntry = getSlotDirectoryRecordEntry(forwardPageData, forwardedRid.slotNum);
+                
+                deleteRecord(&fileHandle, &recordDescriptor, const RID &forwardedRid); // delete forwarded record
+
+                // flag the previously forwarded record to 0 and -1 to show that it is no longer available!
+                forwardedRecordEntry.length = 0;
+                forwardedRecordEntry.offset = -1;
+
             }
-            recordEntry.length = newRecordEntry.length * -1;
-            recordEntry.offset = newRecordEntry.offset * -1;
+            recordEntry.length = newRid.pageNum * -1;
+            recordEntry.offset = newRid.slotNum * -1;
         }       
     }
             
     free(pageData);
+    free(forwardPageData);
+    free(newPageData);
     return SUCCESS;
 }
 
@@ -352,21 +354,8 @@ RC RecordBasedFileManager::insertRecordOnPage(FileHandle &fileHandle, const vect
     setSlotDirectoryHeader(pageData, slotHeader); 
 
     // Adding the record data.
-    setRecordAtOffset (pageData, newRecordEntry.offset, recordDescriptor, data);
+    setRecordAtOffset(pageData, newRecordEntry.offset, recordDescriptor, data);
 
-    // // Writing the page to disk.
-    // if (pageFound)
-    // {
-    //     if (fileHandle.writePage(i, pageData))
-    //         return RBFM_WRITE_FAILED;
-    // }
-    // else
-    // {
-    //     if (fileHandle.appendPage(pageData))
-    //         return RBFM_APPEND_FAILED;
-    // }
-
-    free(pageData);
     return SUCCESS;
 }
 
@@ -607,3 +596,35 @@ void RecordBasedFileManager::setRecordAtOffset(void *page, unsigned offset, cons
         header_offset += sizeof(ColumnOffset);
     }
 }
+
+
+RC readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data) {
+
+}
+
+
+// Scan stuff
+
+// global vars/struct for scan compOp
+
+
+// Scan returns an iterator to allow the caller to go through the results one by one. 
+RC RecordBasedFileManager::scan(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const string &conditionAttribute, const CompOp compOp, const void value, const vector<string> &attributeNames, RBFM_ScanIterator &rbfm_ScanIterator) {
+    return 0;
+}
+
+// Never keep the results in the memory. When getNextRecord() is called, 
+// a satisfying record needs to be fetched from the file.
+// "data" follows the same format as RecordBasedFileManager::insertRecord().
+RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) { 
+    if (compOp == NO_OP) {
+        rid.slotNum++;
+        return;
+        // always have a check that sees if slotNum is valid -- if slotNum++ > recordEntriesNumber, then do pageNum++ instead and reset slotNum
+    }
+    return RBFM_EOF; 
+}
+RC RBFM_ScanIterator::close() { 
+    return -1; 
+}
+
