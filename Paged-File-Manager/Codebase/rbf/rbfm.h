@@ -2,13 +2,22 @@
 #define _rbfm_h_
 
 #include <string>
-#include <cstring>
 #include <vector>
 #include <climits>
-#include <cmath>
-
-
+#include <inttypes.h>
 #include "../rbf/pfm.h"
+
+#define INT_SIZE                4
+#define REAL_SIZE               4
+#define VARCHAR_LENGTH_SIZE     4
+
+#define RBFM_CREATE_FAILED 1
+#define RBFM_MALLOC_FAILED 2
+#define RBFM_OPEN_FAILED   3
+#define RBFM_APPEND_FAILED 4
+#define RBFM_READ_FAILED   5
+#define RBFM_WRITE_FAILED  6
+#define RBFM_SLOT_DN_EXIST 7
 
 using namespace std;
 
@@ -18,19 +27,6 @@ typedef struct
   unsigned pageNum;	// page number
   unsigned slotNum; // slot number in the page
 } RID;
-
-typedef struct 
-{
-  unsigned numSlots;
-  unsigned FSO;
-
-} SlotDirectory;
-
-typedef struct
-{
-  unsigned size;
-  unsigned RO;
-} Slot;
 
 
 // Attribute
@@ -54,7 +50,25 @@ typedef enum { EQ_OP = 0, // no condition// =
            NO_OP	   // no condition
 } CompOp;
 
+// Slot directory headers for page organization
+// See chapter 9.6.2 of the cow book or lecture 3 slide 17 for more information
+typedef struct SlotDirectoryHeader
+{
+    uint16_t freeSpaceOffset;
+    uint16_t recordEntriesNumber;
+} SlotDirectoryHeader;
 
+typedef struct SlotDirectoryRecordEntry
+{
+    uint32_t length; 
+    int32_t offset;
+} SlotDirectoryRecordEntry;
+
+typedef SlotDirectoryRecordEntry* SlotDirectory;
+
+typedef uint16_t ColumnOffset;
+
+typedef uint16_t RecordLength;
 /********************************************************************************
 The scan iterator is NOT required to be implemented for the part 1 of the project 
 ********************************************************************************/
@@ -113,8 +127,8 @@ public:
   RC insertRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, RID &rid);
 
   RC readRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, void *data);
-
-  // This method will be mainly used for debugging/testing.
+  
+  // This method will be mainly used for debugging/testing. 
   // The format is as follows:
   // field1-name: field1-value  field2-name: field2-value ... \n
   // (e.g., age: 24  height: 6.1  salary: 9000
@@ -150,25 +164,24 @@ private:
   static RecordBasedFileManager *_rbf_manager;
   static PagedFileManager *_pf_manager;
 
-  RC createRBPage(void *pageData);
+  // Private helper methods
 
-  unsigned calculateRecordSize(const vector<Attribute> &recordDescriptor, const void* data);
- 
-  //Get methods
-  SlotDirectory getSlotDirectory(void *pageData);
-  Slot getSlot(const void *pageData, int slotNum);
-  unsigned getFreeSpace(void *pageData);
-  
-  //Helper Functions
-  bool isNull(unsigned char nullFieldValue, unsigned char i);
+  void newRecordBasedPage(void * page);
 
+  SlotDirectoryHeader getSlotDirectoryHeader(void * page);
+  void setSlotDirectoryHeader(void * page, SlotDirectoryHeader slotHeader);
 
+  SlotDirectoryRecordEntry getSlotDirectoryRecordEntry(void * page, unsigned recordEntryNumber);
+  void setSlotDirectoryRecordEntry(void * page, unsigned recordEntryNumber, SlotDirectoryRecordEntry recordEntry);
 
- 
- 
+  unsigned getPageFreeSpaceSize(void * page);
+  unsigned getRecordSize(const vector<Attribute> &recordDescriptor, const void *data);
 
+  int getNullIndicatorSize(int fieldCount);
+  bool fieldIsNull(char *nullIndicator, int i);
 
+  void setRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, const void *data);
+  void getRecordAtOffset(void *record, unsigned offset, const vector<Attribute> &recordDescriptor, void *data);
 };
 
 #endif
-
