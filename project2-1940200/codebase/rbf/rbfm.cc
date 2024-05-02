@@ -215,7 +215,7 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
 RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const RID &rid) {
     // Gets the size of the record.
     unsigned newRecordSize = getRecordSize(recordDescriptor, data);
-    
+
     void * pageData = malloc(PAGE_SIZE);
     if (fileHandle.readPage(rid.pageNum, pageData))
         return RBFM_READ_FAILED;
@@ -229,6 +229,11 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
     SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
 
     unsigned OGRecordSize = recordEntry.length;
+    SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(pageData); // get slotHeader so we can update FSO later
+
+    // MAKE A FLAG IF RECORD ENTRY IS NEGATIVE OR NOT SO I KNOW IF ITS FORWARDED
+
+    // EXIT IF IS RID LENGTH AND OFFSET ARE BOTH 0 OR 0 AND -1
 
     // TODO: Make switch statements instead of if-else ladder
     // TODO: Forwarding!!! How to detect an already forwarded address and change multiple forwarded addresses
@@ -241,22 +246,27 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
         memcpy(dataAddress, data, newRecordSize);
 
         // write the updated page back to the file
-        if (fileHandle.writePage(i, pageData))
+        if (fileHandle.writePage(rid.pageNum, pageData))
             return RBFM_WRITE_FAILED;
     }
     // Case 2: if newRecordSize < recordSize
     if (newRecordSize < OGRecordSize) {
         // overwrite old record size and update slot offset, slot length
         recordEntry.length = newRecordSize; // update slot length
-        // update slot offset
-        // ???
-        // memcpy the new record into the page
+        // shift = OGRecordSize - newRecordSize; // the difference between old size and new size is how much you're gonna shift the records by
+        // update slot offset (?)
+        // memmove the new record into the page
+        // also update FSO bc you're shifting everything down
+            // FSO = FSO + shift // ok thank god thats IT 
+        slotHeader.freeSpaceOffset += shift; // update FSO by shift amount bc you're shifting everything down
+        // iterate through everything up to the free space offset memmove
+            // start at the one above it and move it up and up until you get to free space and free space offset
+            // dest = previous location + free space (shift amount)
         void * dataAddress = (char *)pageData + recordEntry.offset;
-        memcpy(dataAddress, data, newRecordSize); // fix this to make sense
     }
 
     // Calculate how much free space there is ON the page
-    bool onPage = getPageFreeSpaceSize(pageData) >= sizeof(recordEntry) + recordSize;
+    bool onPage = getPageFreeSpaceSize(pageData) >= sizeof(recordEntry) + newRecordSize;
 
     // Case 3: if newRecordSize > recordSize
     if (newRecordSize > OGRecordSize) {
@@ -264,14 +274,24 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
         if (onPage) {
             recordEntry.length = newRecordSize;
             // recordEntry.offset = ?
-            // insert record on the same page
+            // delete record and then insert on the same page
+            // insert record on the same page after you check that it has enough page
+                // write my own insert record that takes in a page WE KNOW HAS SPACE ON IT!
+            // then update slot directory entries by * -1
+        } else { // Case 3.2 -- it doesn't fit on the same page
+            // find a new page to insert it on
+            // forward it to the new page
+            // call insert record and return get the slotdirectoryrecordentry 
+                // this returns rid soooooo you can use that to forward the OG page to the new page
+                    // if page already forwarded, you would go to the forwarded rid and change it to 0 and -1 and THEN you'd change the OG recordEntry to have the new record entry forwarded
+            // recordEntry.length = new pageid * -1;
+            // recordEntry.offset = new offset * -1;
         }
     }
         // if free space on page <= newRecordSize, 
             // Case 3.1 -- it fits on the same page
         // if there is no free space on the page, find a new page and FORWARD IT to the next page!!
 
-    }
         // Case 3.1: it fits on the same page
         // Case 3.2: it doesn't fit on the same page
             // Insert record onto new page (call insertRecord?)
@@ -281,6 +301,41 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
     return SUCCESS;
 }
 
+RC RecordBasedFileManager::insertRecordOnPage(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const void *pageData, RID &rid) {
+    // Gets the size of the record.
+    unsigned recordSize = getRecordSize(recordDescriptor, data);
+
+    // Cycles through pages looking for enough free space for the new entry.
+
+    SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(pageData);
+
+    
+    SlotDirectoryRecordEntry newRecordEntry;
+    newRecordEntry.length = recordSize;
+    newRecordEntry.offset = slotHeader.freeSpaceOffset - recordSize;
+
+    // Updating the slot directory header.
+    slotHeader.freeSpaceOffset = newRecordEntry.offset;
+    setSlotDirectoryHeader(pageData, slotHeader); 
+
+    // Adding the record data.
+    setRecordAtOffset (pageData, newRecordEntry.offset, recordDescriptor, data);
+
+    // // Writing the page to disk.
+    // if (pageFound)
+    // {
+    //     if (fileHandle.writePage(i, pageData))
+    //         return RBFM_WRITE_FAILED;
+    // }
+    // else
+    // {
+    //     if (fileHandle.appendPage(pageData))
+    //         return RBFM_APPEND_FAILED;
+    // }
+
+    free(pageData);
+    return SUCCESS;
+}
 
 SlotDirectoryHeader RecordBasedFileManager::getSlotDirectoryHeader(void * page)
 {
