@@ -32,7 +32,7 @@ typedef struct {
 typedef struct {
   int tableID;
   char columnName[51];
-  int columnType;
+  AttrType columnType;
   int columnLength;
   int columnPosition;
 } Column;
@@ -91,8 +91,9 @@ private:
   vector<Table> tables;
   vector<Column> columns;
 
-  FILE *_tD;
-  FILE *_cD;
+  FILE *_td;  //Catalog table -> Tables
+  FILE *_cd;  //Catalog table -> Columns
+  FILE *_fd;  //Any table file
   
 };
 
