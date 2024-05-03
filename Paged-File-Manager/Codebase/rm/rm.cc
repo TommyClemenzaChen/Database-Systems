@@ -25,13 +25,15 @@ RelationManager::~RelationManager()
 {
 }
 
-vector<Attribute> RelationManager::createTablesDescriptor() {
-    vector<Attribute> tablesDescriptor;
+int RelationManager::getNullIndicatorSize(int fieldCount) {
+    return ceil((double) fieldCount / CHAR_BIT);
+}
 
+void RelationManager::createTablesDescriptor(vector<Attribute> &tablesDescriptor) {
     Attribute attr;
     attr.name = "table-id";
     attr.type = TypeInt;
-    attr.length = (AttrLength)INT_SIZE;
+    attr.length = (AttrLength)4;
     tablesDescriptor.push_back(attr);
 
     attr.name = "table-name";
@@ -46,19 +48,15 @@ vector<Attribute> RelationManager::createTablesDescriptor() {
 
     attr.name = "isSystem";
     attr.type = TypeInt;
-    attr.length = (AttrLength)INT_SIZE;
+    attr.length = (AttrLength)4;
     tablesDescriptor.push_back(attr);
-
-    return tablesDescriptor;
 }
 
-vector<Attribute> RelationManager::createColumnsDescriptor() {
-    vector<Attribute> columnsDescriptor;
-
+void RelationManager::createColumnsDescriptor(vector<Attribute> &columnsDescriptor) {
     Attribute attr;
     attr.name = "table-id";
     attr.type = TypeInt;
-    attr.length = (AttrLength)INT_SIZE;
+    attr.length = (AttrLength)4;
     columnsDescriptor.push_back(attr);
 
     attr.name = "column-name";
@@ -68,77 +66,135 @@ vector<Attribute> RelationManager::createColumnsDescriptor() {
 
     attr.name = "column-type";
     attr.type = TypeInt;
-    attr.length = (AttrLength)INT_SIZE;
+    attr.length = (AttrLength)4;
     columnsDescriptor.push_back(attr);
 
     attr.name = "column-length";
     attr.type = TypeInt;
-    attr.length = (AttrLength)INT_SIZE;
+    attr.length = (AttrLength)4;
     columnsDescriptor.push_back(attr);
 
     attr.name = "column-position";
     attr.type = TypeInt;
-    attr.length = (AttrLength)INT_SIZE;
+    attr.length = (AttrLength)4;
     columnsDescriptor.push_back(attr);
-
-    return columnsDescriptor;
 }
 
-RC RelationManager::setTableData(int tableID, string tableName, int isSystem, void *data) {
+RC RelationManager::configureTableData(int fieldCount, unsigned char *nullFieldsIndicator, int tableID, string tableName, int isSystem, void *data) {
     int offset = 0;
     int tablenameLength = tableName.length();
     string fileName = tableName + ".tbl";
     int filenameLength = fileName.length();
-    
 
+    //null-indicators
+    bool nullBit = false;
+    int nullFieldsIndicatorActualSize = ceil((double)fieldCount / 8);
+
+    cout << nullFieldsIndicatorActualSize << endl;
+    cout << nullFieldsIndicator << endl;
+
+    //null-indicator for the fields
+    memcpy((char*)data + offset, &nullFieldsIndicator, nullFieldsIndicatorActualSize);
+    offset += nullFieldsIndicatorActualSize;
+    
+    // Beginning of the actual data    
+    // Note that the left-most bit represents the first field. Thus, the offset is 7 from right, not 0.
+    // e.g., if a record consists of four fields and they are all nulls, then the bit representation will be: [11110000]
+   
     //Attr: Table-ID
-    memcpy((char*)data + offset, &tableID, INT_SIZE);
-    offset += INT_SIZE;
+    nullBit = nullFieldsIndicator[0] & (1 << 7);
+    if (!nullBit) {
+        cout << "added id" << endl;
+        memcpy((char*)data + offset, &tableID, sizeof(int));
+        offset += sizeof(int);
+    }
 
     //Attr: Table-Name
-    memcpy((char*)data + offset, &tablenameLength, VARCHAR_LENGTH_SIZE);
-    offset += VARCHAR_LENGTH_SIZE;
-    memcpy((char*)data + offset, tableName.c_str(), tablenameLength);
-    offset += tablenameLength;
+    nullBit = nullFieldsIndicator[0] & (1 << 6);
+    if (!nullBit) {
+        cout << "added table name" << endl;
+        memcpy((char*)data + offset, &tablenameLength, VARCHAR_LENGTH_SIZE);
+        offset += VARCHAR_LENGTH_SIZE;
+        memcpy((char*)data + offset, tableName.c_str(), tablenameLength);
+        offset += tablenameLength;
+    }
 
     //Attr: File-Name
-    memcpy((char*)data + offset, &filenameLength, VARCHAR_LENGTH_SIZE);
-    offset += VARCHAR_LENGTH_SIZE;
-    memcpy((char*)data + offset, fileName.c_str(), filenameLength);
-    offset += filenameLength;
+    nullBit = nullFieldsIndicator[0] & (1 << 5);
+    if (!nullBit) {
+        cout << "added file name" << endl;
+        memcpy((char*)data + offset, &filenameLength, sizeof(int));
+        offset += sizeof(int);
+        memcpy((char*)data + offset, fileName.c_str(), filenameLength);
+        offset += filenameLength;
+    }
 
     //Attr: isSystem
-    memcpy((char*)data + offset, &isSystem, INT_SIZE);
-    offset += INT_SIZE;
+    nullBit = nullFieldsIndicator[0] & (1 << 4);
+    if (!nullBit) {
+        cout << "added isSystem" << endl;
+        memcpy((char*)data + offset, &isSystem,sizeof(int));
+        offset += sizeof(int);
+    }
 
     return 0;
 }
 
-RC RelationManager::setColumnsData(int tableID, string columnName, int columnType,
-    int columnLength, int columnPosition, void *data)
+RC RelationManager::configureColumnsData(int fieldCount, unsigned char *nullFieldsIndicator, int tableID, 
+    string columnName, int columnType, int columnLength, int columnPosition, void *data)
 {
     int offset = 0;
     int columnNameLength = columnName.length();
+
+    bool nullBit = false;
+    int nullFieldsIndicatorActualSize = getNullIndicatorSize(fieldCount);
+    
+    memcpy((char*)data + offset, nullFieldsIndicator, nullFieldsIndicatorActualSize);
+    offset += nullFieldsIndicatorActualSize;
+
+    // Beginning of the actual data    
+    // Note that the left-most bit represents the first field. Thus, the offset is 7 from right, not 0.
+    // e.g., if a record consists of four fields and they are all nulls, then the bit representation will be: [11110000]
+
+    // Is the name field not-NULL?
+    
     //Attr: Table-ID
-    memcpy((char*)data + offset, &tableID, INT_SIZE);
-    offset += INT_SIZE;
+    nullBit = nullFieldsIndicator[0] & (1 << 7);
+    if (!nullBit) {
+        memcpy((char*)data + offset, &tableID, INT_SIZE);
+        offset += INT_SIZE;
+    }
 
     //Attr: Column-Name
-    memcpy((char*)data + offset, &columnNameLength, VARCHAR_LENGTH_SIZE);
-    offset += VARCHAR_LENGTH_SIZE;
-    memcpy((char*)data + offset, columnName.c_str(), columnNameLength);
-    offset += columnNameLength;
-
+    nullBit = nullFieldsIndicator[0] & (1 << 6);
+    if (!nullBit) {
+        nullBit = nullFieldsIndicator[0] & (1 << 7);
+        memcpy((char*)data + offset, &columnNameLength, VARCHAR_LENGTH_SIZE);
+        offset += VARCHAR_LENGTH_SIZE;
+        memcpy((char*)data + offset, columnName.c_str(), columnNameLength);
+        offset += columnNameLength;
+    }
+    
     //Attr: Column-Type
-    memcpy((char*)data + offset, &columnType, INT_SIZE);
-    offset += INT_SIZE;
+    nullBit = nullFieldsIndicator[0] & (1 << 5);
+    if (!nullBit) {
+        memcpy((char*)data + offset, &columnType, INT_SIZE);
+        offset += INT_SIZE;
+    }
 
     //Attr: Column-Length
-    memcpy((char*)data + offset, &columnLength, INT_SIZE);
-    offset += INT_SIZE;
+    nullBit = nullFieldsIndicator[0] & (1 << 4);
+    if (!nullBit) {
+        memcpy((char*)data + offset, &columnLength, INT_SIZE);
+        offset += INT_SIZE;
+    }
 
-    memcpy((char*)data + offset, &columnPosition, INT_SIZE);
-    offset += INT_SIZE;
+    //Attr: Column-Position
+    nullBit = nullFieldsIndicator[0] & (1 << 3);
+    if (!nullBit) {
+        memcpy((char*)data + offset, &columnPosition, INT_SIZE);
+        offset += INT_SIZE;
+    }
 
     return 0;
 }
@@ -157,32 +213,43 @@ RC RelationManager::createCatalog()
     }
 
 
+
     RID rid;
-   
-    //opening catalog tables
     FileHandle fileHandle;
+    int nullIndicatorSize;
+    unsigned char *nullFieldsIndicator;
+    int fieldCount;
+    
+
+////////////////////////////////////////////////////////////////////////////////////////////   
+    //opening catalog tables
     if (_rbfm->openFile("Tables.tbl", fileHandle) != SUCCESS) {
         cout << "can't open tables" << endl;
         return -1;
     }
 
     //Catalog "Tables" setup
-    vector<Attribute> tablesDescriptor = createTablesDescriptor();
+    vector<Attribute> tablesDescriptor;
+    createTablesDescriptor(tablesDescriptor);
     
-    void *tablesData = (void*)malloc(512);  //two ints, two varchars, length of both varchars
+    nullIndicatorSize = getNullIndicatorSize(tablesDescriptor.size());
     
-    setTableData(1, "Tables", 1, tablesData);
+    nullFieldsIndicator = (unsigned char*)malloc(nullIndicatorSize);
+    void *tablesData = malloc(4096); 
+
+    fieldCount = tablesDescriptor.size();
+
+    configureTableData(fieldCount, nullFieldsIndicator, 1, "Tables", 1, tablesData);
     _rbfm->insertRecord(fileHandle, tablesDescriptor, tablesData, rid);
 
-    cout << "inserted tables" << endl;
 
-    setTableData(2, "Columns", 1, tablesData);
+    configureTableData(fieldCount, nullFieldsIndicator, 2, "Columns", 1, tablesData);
     _rbfm->insertRecord(fileHandle, tablesDescriptor, tablesData, rid);
-
+    
     _rbfm->closeFile(fileHandle);
     free(tablesData);
 
-    return 0;
+///////////////////////////////////////////////////////////////////////////////////////////////////
     
     //opening Catalog columns
     if (_rbfm->openFile("Columns.tbl", fileHandle) != SUCCESS) {
@@ -190,36 +257,45 @@ RC RelationManager::createCatalog()
         return -1;
     }
 
-    void *columnsData = malloc(512);  
     //Catalog "Columns" setup
-    vector<Attribute> columnsDescriptor = createColumnsDescriptor();
+    vector<Attribute> columnsDescriptor;
+    createColumnsDescriptor(columnsDescriptor);
 
-    setColumnsData(1, "table-id", TypeInt, 4, 1, columnsData);
+    nullIndicatorSize = getNullIndicatorSize(columnsDescriptor.size());
+    
+    nullFieldsIndicator = (unsigned char*)malloc(nullIndicatorSize);
+    void *columnsData = malloc(4096); 
+
+    fieldCount = columnsDescriptor.size();
+
+    configureColumnsData(fieldCount, nullFieldsIndicator, 1, "table-id", TypeInt, 4, 1, columnsData);
     _rbfm->insertRecord(fileHandle, columnsDescriptor, columnsData, rid);
 
-    setColumnsData(2, "column-name", TypeVarChar, 50, 2, columnsData);
+    configureColumnsData(fieldCount, nullFieldsIndicator, 2, "column-name", TypeVarChar, 50, 2, columnsData);
     _rbfm->insertRecord(fileHandle, columnsDescriptor, columnsData, rid);
 
-    setColumnsData(3, "column-type", TypeInt, 4, 3, columnsData);
+    configureColumnsData(fieldCount, nullFieldsIndicator, 3, "column-type", TypeInt, 4, 3, columnsData);
     _rbfm->insertRecord(fileHandle, columnsDescriptor, columnsData, rid);
 
-    setColumnsData(4, "column-length", TypeInt, 4, 4, columnsData);
-    _rbfm->insertRecord(fileHandle, columnsDescriptor, columnsData, rid
-    );
-    setColumnsData(5, "column-position", TypeInt, 4, 5, columnsData);
+    configureColumnsData(fieldCount, nullFieldsIndicator, 4, "column-length", TypeInt, 4, 4, columnsData);
+    _rbfm->insertRecord(fileHandle, columnsDescriptor, columnsData, rid);
+    
+    configureColumnsData(fieldCount, nullFieldsIndicator, 5, "column-position", TypeInt, 4, 5, columnsData);
     _rbfm->insertRecord(fileHandle, columnsDescriptor, columnsData, rid);
 
+    
+    _rbfm->closeFile(fileHandle);
     free(columnsData);
 
-    _rbfm->closeFile(fileHandle);
 
     return 0;
 }
 
 RC RelationManager::deleteCatalog()
 {
-
-    return -1;
+    remove("Tables.tbl");
+    remove("Columns.tbl");
+    return 0;
 }
 
 RC RelationManager::createTable(const string &tableName, const vector<Attribute> &attrs)
@@ -263,7 +339,13 @@ RC RelationManager::deleteTable(const string &tableName)
 
 RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &attrs)
 {
-    return 0;
+    FileHandle fileHandle;
+
+    //open catalog "Tables" to get table id of tableName
+    if (_rbfm->openFile(tableName + ".tbl", fileHandle) != SUCCESS) {
+        return 0;
+    }
+    for (int i = 0; i < )
     
 }
 
@@ -304,13 +386,13 @@ RC RelationManager::scan(const string &tableName,
       const vector<string> &attributeNames,
       RM_ScanIterator &rm_ScanIterator)
 {
+    Filehandle fileHandle;
+    if (_rbfm->openFile(tableName + ".tbl", fileHandle) != SUCCESS) {
+        return -1;
+    }
 
+    vector<Attribute> tableDescriptor;
+    getAttributes()
 
     return -1;
 }
-
-
-
-
-
-

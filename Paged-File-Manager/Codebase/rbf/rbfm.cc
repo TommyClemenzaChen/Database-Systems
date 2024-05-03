@@ -211,10 +211,44 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
     return SUCCESS;
 }
 
+//Project 2 stuff
+
 RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid) {
+    void *pageData = malloc(PAGE_SIZE);
     
+    fileHandle.readPage(rid.pageNum, pageData);
+
+    SlotDirectoryHeader slotDirectory = getSlotDirectoryHeader(pageData);
+    if (slotDirectory.recordEntriesNumber <= rid.slotNum) {
+        //don't need to search if slot doesn't exist
+        return -1;
+    }
+
+    SlotDirectoryRecordEntry deadRecord
     return 0;
 }
+
+RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector <Attribute> &recordDescriptor, const void *data, const RID &rid) {
+
+    return 0;
+}
+
+RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector <Attribute> &recordDescriptor, const RID &rid,
+const string attributeName, void *data) 
+{
+
+
+    return 0;
+}
+
+RC RecordBasedFileManager::scan(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const string &conditionAttribute,
+const CompOp compOp, const void *value, const vector<string> &attributeNames, RBFM_ScanIterator &rbfm_ScanIterator)
+{
+
+ 
+}
+
+//Helper Functions
 
 SlotDirectoryHeader RecordBasedFileManager::getSlotDirectoryHeader(void * page)
 {
@@ -294,6 +328,7 @@ unsigned RecordBasedFileManager::getRecordSize(const vector<Attribute> &recordDe
             break;
             case TypeVarChar:
                 uint32_t varcharSize;
+
                 // We have to get the size of the VarChar field by reading the integer that precedes the string value itself
                 memcpy(&varcharSize, (char*) data + offset, VARCHAR_LENGTH_SIZE);
                 size += varcharSize;

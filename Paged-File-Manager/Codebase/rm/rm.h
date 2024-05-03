@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <cstring>
+#include <cmath>
 
 #include "../rbf/rbfm.h"
 
@@ -66,10 +67,15 @@ public:
 
   //Helper Functions
   RC validConfigTables();
-  vector<Attribute> createColumnsDescriptor();
-  vector<Attribute> createTablesDescriptor();
-  RC setTableData(int tableID, string tableName, int isSystem, void *data);
-  RC setColumnsData(int tableID, string columnName, int columnType, int columnLength, int columnPosition, void *data);
+  void createColumnsDescriptor(vector<Attribute> &columnsDescriptor);
+  void createTablesDescriptor(vector<Attribute> &tablesDescriptor);
+  RC configureTableData(int fieldCount, unsigned char *nullFieldsIndicator, int tableID, string tableName, int isSystem, void *data);
+  
+  RC configureColumnsData(int fieldCount, unsigned char *nullFieldsIndicator, int tableID, 
+    string columnName, int columnType, int columnLength, int columnPosition, void *data);
+  
+  int getNullIndicatorSize(int fieldCount);
+
 
   protected:
   RelationManager();
