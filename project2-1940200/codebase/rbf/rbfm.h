@@ -85,6 +85,13 @@ The scan iterator is NOT required to be implemented for the part 1 of the projec
 //  rbfmScanIterator.close();
 
 class RBFM_ScanIterator {
+private:
+    const CompOp comp;
+    const vector<Attribute> RD;
+    const string &condAttr;
+    const vector<string> &attrNames;
+    const void val;
+    
 public:
   RBFM_ScanIterator() {};
   ~RBFM_ScanIterator() {};
@@ -143,6 +150,7 @@ IMPORTANT, PLEASE READ: All methods below this comment (other than the construct
   // Assume the RID does not change after an update
   RC updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const RID &rid);
 
+ 
   RC readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data);
 
   // Scan returns an iterator to allow the caller to go through the results one by one. 

@@ -597,19 +597,31 @@ void RecordBasedFileManager::setRecordAtOffset(void *page, unsigned offset, cons
     }
 }
 
-
-RC readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data) {
-
+// Given a record descriptor, read a specific attribute of a record identified by a given rid.
+RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data) {
+    unsigned field = 0;
+    for (unsigned i = 0; i < (unsigned) recordDescriptor.size(); i++) {
+        // Skip null fields
+        if (fieldIsNull(nullIndicator, i))
+            continue;
+        if (recordDescriptor[i].name == attributeName) {
+            field = i;
+        }
+    }
+    
 }
 
-
-// Scan stuff
-
-// global vars/struct for scan compOp
-
+/* ------------------ SCAN --------------------- */
 
 // Scan returns an iterator to allow the caller to go through the results one by one. 
 RC RecordBasedFileManager::scan(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const string &conditionAttribute, const CompOp compOp, const void value, const vector<string> &attributeNames, RBFM_ScanIterator &rbfm_ScanIterator) {
+    // incorrect syntax but she's got the spirit!
+    rbfm_ScanIterator.comp = compOp;
+    rbfm_ScanIterator.RD = recordDescriptor;
+    rbfm_ScanIterator.condAttr = conditionAttribute;
+    rbfm_ScanIterator.val = value;
+    rbfm_ScanIterator.attrNames = attributeNames;
+
     return 0;
 }
 
@@ -620,7 +632,7 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) {
     if (compOp == NO_OP) {
         rid.slotNum++;
         return;
-        // always have a check that sees if slotNum is valid -- if slotNum++ > recordEntriesNumber, then do pageNum++ instead and reset slotNum
+    // always have a check that sees if slotNum is valid -- if slotNum++ > recordEntriesNumber, then do pageNum++ instead and reset slotNum
     }
     return RBFM_EOF; 
 }
