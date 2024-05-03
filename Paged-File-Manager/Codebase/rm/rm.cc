@@ -89,6 +89,7 @@ RC RelationManager::setTableData(int tableID, string tableName, int isSystem, vo
     int tablenameLength = tableName.length();
     string fileName = tableName + ".tbl";
     int filenameLength = fileName.length();
+    
 
     //Attr: Table-ID
     memcpy((char*)data + offset, &tableID, INT_SIZE);
@@ -168,7 +169,7 @@ RC RelationManager::createCatalog()
     //Catalog "Tables" setup
     vector<Attribute> tablesDescriptor = createTablesDescriptor();
     
-    void *tablesData = (void*)malloc(108);  
+    void *tablesData = (void*)malloc(512);  //two ints, two varchars, length of both varchars
     
     setTableData(1, "Tables", 1, tablesData);
     _rbfm->insertRecord(fileHandle, tablesDescriptor, tablesData, rid);
@@ -189,7 +190,7 @@ RC RelationManager::createCatalog()
         return -1;
     }
 
-    void *columnsData = malloc(4096);  
+    void *columnsData = malloc(512);  
     //Catalog "Columns" setup
     vector<Attribute> columnsDescriptor = createColumnsDescriptor();
 
