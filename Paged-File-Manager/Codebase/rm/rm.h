@@ -21,21 +21,8 @@ public:
   // "data" follows the same format as RelationManager::insertTuple()
   RC getNextTuple(RID &rid, void *data) { return RM_EOF; };
   RC close() { return -1; };
+
 };
-
-typedef struct {
-  int tableID;
-  char tableName[51];
-  char fileName[51];
-} Table;
-
-typedef struct {
-  int tableID;
-  char columnName[51];
-  AttrType columnType;
-  int columnLength;
-  int columnPosition;
-} Column;
 
 // Relation Manager
 class RelationManager
@@ -79,17 +66,18 @@ public:
 
   //Helper Functions
   RC validConfigTables();
+  vector<Attribute> createColumnsDescriptor();
+  vector<Attribute> createTablesDescriptor();
+  RC setTableData(int tableID, string tableName, int isSystem, void *data);
+  RC setColumnsData(int tableID, string columnName, int columnType, int columnLength, int columnPosition, void *data);
 
-protected:
+  protected:
   RelationManager();
   ~RelationManager();
 
 private:
   static RelationManager *_rm;
   static RecordBasedFileManager *_rbfm;
-  
-  vector<Table> tables;
-  vector<Column> columns;
 
   FILE *_td;  //Catalog table -> Tables
   FILE *_cd;  //Catalog table -> Columns
