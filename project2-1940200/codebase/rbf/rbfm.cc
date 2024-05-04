@@ -301,7 +301,8 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
         if (onPage) {
             deleteRecord(&fileHandle, &recordDescriptor, const RID &rid); // delete record
             insertRecordOnPage(&fileHandle, &recordDescriptor, *data, *pageData, &rid); // insert the larger record on the same page and update rid
-        } else { // Case 3.2 -- it doesn't fit on the same page
+        } else { 
+            // Case 3.2 -- it doesn't fit on the same page
             deleteRecord(&fileHandle, &recordDescriptor, const RID &rid); // delete record
             RID newRid; // initialize empty rid for new insert record rid
             insertRecord(&fileHandle, &recordDescriptor, *data, *newPageData, &newRid);// call insert record
@@ -599,44 +600,154 @@ void RecordBasedFileManager::setRecordAtOffset(void *page, unsigned offset, cons
 
 // Given a record descriptor, read a specific attribute of a record identified by a given rid.
 RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data) {
-    unsigned field = 0;
-    for (unsigned i = 0; i < (unsigned) recordDescriptor.size(); i++) {
-        // Skip null fields
-        if (fieldIsNull(nullIndicator, i))
-            continue;
-        if (recordDescriptor[i].name == attributeName) {
-            field = i;
+    int offset = 0;
+
+    void *pageData = malloc(PAGE_SIZE);
+    fileHandle.readPage(rid.pageNum, pageData);
+
+    return 0;
+    // Gets the slot directory record entry data
+    SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
+
+    // Retrieve the actual entry data
+    void *recordData = malloc(recordEntry.length);
+    getRecordAtOffset(recordData, recordEntry.offset, recordDescriptor, recordData);
+
+    // setting up null field indicator
+    int nullIndicatorSize = getNullIndicatorSize(recordDescriptor.size());
+    char* nullIndicator = (char*)malloc(nullIndicatorSize);
+    memcpy(nullIndicator, recordData, nullIndicatorSize);
+    offset += nullIndicatorSize;
+
+    // offset should be 1 at this point
+    for (int i = 0; i < recordDescriptor.size(); i++) {
+        bool isNull = fieldIsNull(nullIndicator, i);
+        if (recordDescriptor[i].name != attributeName) {
+            switch (recordDescriptor[i].type)
+            {
+                case TypeInt:
+                    offset += INT_SIZE;
+                    break;
+
+                case TypeReal:
+                    offset += REAL_SIZE;
+                    break;
+                case TypeVarChar:
+                    uint32_t attrLength;
+                    memcpy(&attrLength, (char*)recordData + offset, VARCHAR_LENGTH_SIZE);
+                    offset += VARCHAR_LENGTH_SIZE;
+                    offset += attrLength;
+
+            }
+        }
+        else {
+            switch (recordDescriptor[i].type)
+            {
+                case TypeInt:
+                    memcpy(data, (char*)recordData + offset, INT_SIZE);
+                    return 0;
+                case TypeReal:
+                    memcpy(data, (char*)recordData + offset, REAL_SIZE);
+                    return 0;
+                case TypeVarChar:
+                    uint32_t attrLength;
+                    memcpy(&attrLength, (char*)recordData + offset, VARCHAR_LENGTH_SIZE);
+                    offset += VARCHAR_LENGTH_SIZE;
+                    memcpy(data, (char*)recordData + offset, attrLength);
+                    return 0;
+            }
         }
     }
+
+    return -1; //should never get here
     
 }
 
-/* ------------------ SCAN --------------------- */
+/* ---------------------------------------- SCAN ------------------------------------------------- */
 
 // Scan returns an iterator to allow the caller to go through the results one by one. 
 RC RecordBasedFileManager::scan(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const string &conditionAttribute, const CompOp compOp, const void value, const vector<string> &attributeNames, RBFM_ScanIterator &rbfm_ScanIterator) {
     // incorrect syntax but she's got the spirit!
+    rbfm_ScanIterator.fileHandle = fileHandle;
     rbfm_ScanIterator.comp = compOp;
     rbfm_ScanIterator.RD = recordDescriptor;
     rbfm_ScanIterator.condAttr = conditionAttribute;
     rbfm_ScanIterator.val = value;
     rbfm_ScanIterator.attrNames = attributeNames;
+    rbfm_ScanIterator.iterRid.pageNum = 0;
+    rbfm_ScanIterator.iterRid.slotNum = 0;
+    rbfm_ScanIterator.numPages = fileHandle.getNumberOfPages(); 
+    rbfm_ScanIterator.totalSlots = 0;
 
     return 0;
+}
+
+bool RBFM_ScanIterator::isValid(SlotDirectoryRecordEntry recordEntry) {
+    return recordEntry.length > 0 && recordEntry.offset > 0;
+}
+
+bool RBFM_ScanIterator::checkCondition() {
+    // what we have: page number and slot number
+    // what we need to do: see if read attribute matches cond attr
+    void* data;
+    
+    // read record at Rid into *data!!!
+    if (readAttribute(fileHandle, RD, iterRid, condAttr, data) < 0) return false;
+
+    // return the result of comparison between the found condition attribute and the specified value
+    return data comp val;    
+}
+
+RC RBFM_ScanIterator::getNextSlot() {
+    RC = SUCCESS;
+    SlotDirectoryHeader slotHeader;
+    SlotDirectoryRecordEntry recordEntry;      
+    void *pageData = malloc(PAGE_SIZE); // this could segfault if its recursive
+
+    // increment iterator, handle case where you reach end of page and need new page
+    iterRid.slotNum++;
+    if (iterRid.slotNum >= totalSlots && (iterRid.pageNum < numPages)) {
+        iterRid.pageNum++; // read new page
+        iterRid.slotNum = 0;
+        if (pageData == NULL) return RBFM_MALLOC_FAILED;
+
+        slotHeader = getSlotDirectoryHeader(pageData);
+        recordEntry = getSlotDirectoryRecordEntry(pageData, iterRid.slotNum);
+        totalSlots = slotHeader.recordEntriesNumber;
+        if (!isValid(recordEntry) || !checkCondition()) {
+            return getNextSlot();
+        }
+    }
+    else if (iterRid.pageNum >= numPages) RC = -1;
+
+    free(pageData);
+    return RC;
 }
 
 // Never keep the results in the memory. When getNextRecord() is called, 
 // a satisfying record needs to be fetched from the file.
 // "data" follows the same format as RecordBasedFileManager::insertRecord().
 RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) { 
-    if (compOp == NO_OP) {
-        rid.slotNum++;
-        return;
-    // always have a check that sees if slotNum is valid -- if slotNum++ > recordEntriesNumber, then do pageNum++ instead and reset slotNum
+    int rc = getNextSlot(); // now the slot is in iterRid
+
+    if (rc) return rc;
+    
+    void *data2;
+    // get projected attribute and populate *data with it
+    // projected attributes are in attrNames
+    // loop through attrNames vector
+    for (auto name : attrNames) {
+        // read in the condition attribute
+        if (readAttribute(fileHandle, RD, iterRid, name, data2) < 0) return false;    
     }
-    return RBFM_EOF; 
+
+    return SUCCESS; 
 }
+
+
 RC RBFM_ScanIterator::close() { 
-    return -1; 
+    // reset iterator to page 1 slot 0 (hypothetically)
+    iterRid.pageNum = 0; iterRid.slotNum = 0;
+    return SUCCESS;
 }
 

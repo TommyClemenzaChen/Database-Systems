@@ -91,7 +91,15 @@ private:
     const string &condAttr;
     const vector<string> &attrNames;
     const void val;
-    
+    RID iterRid;
+    unsigned numPages;
+    unsigned totalSlots;
+    FileHandle &fileHandle;
+
+    RC getNextSlot();
+    bool isValid(SlotDirectoryRecordEntry recordEntry);
+    bool checkCondition();
+
 public:
   RBFM_ScanIterator() {};
   ~RBFM_ScanIterator() {};
@@ -192,5 +200,5 @@ private:
   void setRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, const void *data);
   void getRecordAtOffset(void *record, unsigned offset, const vector<Attribute> &recordDescriptor, void *data);
 };
-
+7
 #endif
