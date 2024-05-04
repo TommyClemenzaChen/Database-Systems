@@ -69,7 +69,7 @@ public:
   RC validConfigTables();
   void createColumnsDescriptor(vector<Attribute> &columnsDescriptor);
   void createTablesDescriptor(vector<Attribute> &tablesDescriptor);
-  RC configureTableData(int fieldCount, unsigned char *nullFieldsIndicator, int tableID, string tableName, int isSystem, void *data);
+  RC configureTableData(int fieldCount, unsigned char *nullFieldsIndicator, int tableID, string tableName, string isSystem, void *data);
   
   RC configureColumnsData(int fieldCount, unsigned char *nullFieldsIndicator, int tableID, 
     string columnName, int columnType, int columnLength, int columnPosition, void *data);

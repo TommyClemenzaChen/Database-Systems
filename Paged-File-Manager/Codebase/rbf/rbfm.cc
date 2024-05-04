@@ -235,66 +235,67 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector <At
 RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector <Attribute> &recordDescriptor, const RID &rid,
 const string &attributeName, void *data) 
 {
+
+    void *recordData = malloc(PAGE_SIZE);
+    readRecord(fileHandle, recordDescriptor, rid, recordData);
+    
     int offset = 0;
 
-    void *pageData = malloc(PAGE_SIZE);
-    fileHandle.readPage(rid.pageNum, pageData);
-
-     // Gets the slot directory record entry data
-    SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
-
-    // Retrieve the actual entry data
-    void *recordData = malloc(recordEntry.length);
-    getRecordAtOffset(recordData, recordEntry.offset, recordDescriptor, recordData);
-
-    //setting up null field indicator
+    // Read in the null indicator
     int nullIndicatorSize = getNullIndicatorSize(recordDescriptor.size());
-    char* nullIndicator = (char*)malloc(nullIndicatorSize);
-    memcpy(nullIndicator, recordData, nullIndicatorSize);
+    char nullIndicator[nullIndicatorSize];
+    memset(nullIndicator, 0, nullIndicatorSize);
+    memcpy(nullIndicator, (char*)recordData + offset, nullIndicatorSize);
     offset += nullIndicatorSize;
 
-    //offset should be 1 at this point
+    int stringLength;
+    bool found = false;
 
     for (int i = 0; i < recordDescriptor.size(); i++) {
-        bool isNull = fieldIsNull(nullIndicator, i);
-        if (recordDescriptor[i].name != attributeName) {
-            switch (recordDescriptor[i].type)
-            {
-                case TypeInt:
-                    offset += INT_SIZE;
-                    break;
-
-                case TypeReal:
-                    offset += REAL_SIZE;
-                    break;
-                case TypeVarChar:
-                    uint32_t attrLength;
-                    memcpy(&attrLength, (char*)recordData + offset, VARCHAR_LENGTH_SIZE);
-                    offset += VARCHAR_LENGTH_SIZE;
-                    offset += attrLength;
-                    
-            }
+        Attribute attr = recordDescriptor[i];
+        if (attr.name.compare(attributeName) == 0) {
+            found = true;
         }
-        else {
-            switch (recordDescriptor[i].type)
-            {
-                case TypeInt:
+        switch (attr.type) {
+            case TypeInt:
+                if (found) {
                     memcpy(data, (char*)recordData + offset, INT_SIZE);
                     return 0;
-                case TypeReal:
+                }
+
+                offset += INT_SIZE;
+                break;
+            
+            case TypeReal:
+                if (found) {
                     memcpy(data, (char*)recordData + offset, REAL_SIZE);
                     return 0;
-                case TypeVarChar:
-                    uint32_t attrLength;
-                    memcpy(&attrLength, (char*)recordData + offset, VARCHAR_LENGTH_SIZE);
-                    offset += VARCHAR_LENGTH_SIZE;
-                    memcpy(data, (char*)recordData + offset, attrLength);
+                }
+               
+                offset += REAL_SIZE;
+                break;
+            
+            case TypeVarChar:
+                memcpy(&stringLength, (char*)recordData + offset, VARCHAR_LENGTH_SIZE);
+                offset += VARCHAR_LENGTH_SIZE;
+
+                if (found) {
+                    memcpy(data, (char*)recordData + offset, stringLength);
+                    ((char*)data)[stringLength] = '\0';
                     return 0;
-            }
+                }
+                
+                offset += stringLength;
+                break;
         }
     }
 
-    return -1; //should never get here
+    if (!found) {
+        memcpy(data, "NULL", 4);
+    }
+
+    free(recordData);
+    return -1;
 }
 
 RBFM_ScanIterator::RBFM_ScanIterator() 

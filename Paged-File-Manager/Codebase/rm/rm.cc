@@ -46,10 +46,6 @@ void RelationManager::createTablesDescriptor(vector<Attribute> &tablesDescriptor
     attr.length = (AttrLength)50;
     tablesDescriptor.push_back(attr);
 
-    attr.name = "isSystem";
-    attr.type = TypeInt;
-    attr.length = (AttrLength)4;
-    tablesDescriptor.push_back(attr);
 }
 
 void RelationManager::createColumnsDescriptor(vector<Attribute> &columnsDescriptor) {
@@ -80,7 +76,7 @@ void RelationManager::createColumnsDescriptor(vector<Attribute> &columnsDescript
     columnsDescriptor.push_back(attr);
 }
 
-RC RelationManager::configureTableData(int fieldCount, unsigned char *nullFieldsIndicator, int tableID, string tableName, int isSystem, void *data) {
+RC RelationManager::configureTableData(int fieldCount, unsigned char *nullFieldsIndicator, int tableID, string tableName, string isSystem, void *data) {
     int offset = 0;
     int tablenameLength = tableName.length();
     string fileName = tableName + ".tbl";
@@ -89,9 +85,6 @@ RC RelationManager::configureTableData(int fieldCount, unsigned char *nullFields
     //null-indicators
     bool nullBit = false;
     int nullFieldsIndicatorActualSize = ceil((double)fieldCount / 8);
-
-    cout << nullFieldsIndicatorActualSize << endl;
-    cout << nullFieldsIndicator << endl;
 
     //null-indicator for the fields
     memcpy((char*)data + offset, &nullFieldsIndicator, nullFieldsIndicatorActualSize);
@@ -104,7 +97,6 @@ RC RelationManager::configureTableData(int fieldCount, unsigned char *nullFields
     //Attr: Table-ID
     nullBit = nullFieldsIndicator[0] & (1 << 7);
     if (!nullBit) {
-        cout << "added id" << endl;
         memcpy((char*)data + offset, &tableID, sizeof(int));
         offset += sizeof(int);
     }
@@ -112,7 +104,6 @@ RC RelationManager::configureTableData(int fieldCount, unsigned char *nullFields
     //Attr: Table-Name
     nullBit = nullFieldsIndicator[0] & (1 << 6);
     if (!nullBit) {
-        cout << "added table name" << endl;
         memcpy((char*)data + offset, &tablenameLength, VARCHAR_LENGTH_SIZE);
         offset += VARCHAR_LENGTH_SIZE;
         memcpy((char*)data + offset, tableName.c_str(), tablenameLength);
@@ -122,7 +113,6 @@ RC RelationManager::configureTableData(int fieldCount, unsigned char *nullFields
     //Attr: File-Name
     nullBit = nullFieldsIndicator[0] & (1 << 5);
     if (!nullBit) {
-        cout << "added file name" << endl;
         memcpy((char*)data + offset, &filenameLength, sizeof(int));
         offset += sizeof(int);
         memcpy((char*)data + offset, fileName.c_str(), filenameLength);
@@ -132,9 +122,11 @@ RC RelationManager::configureTableData(int fieldCount, unsigned char *nullFields
     //Attr: isSystem
     nullBit = nullFieldsIndicator[0] & (1 << 4);
     if (!nullBit) {
-        cout << "added isSystem" << endl;
-        memcpy((char*)data + offset, &isSystem,sizeof(int));
+        int systemLength = isSystem.length();
+        memcpy((char*)data + offset, &systemLength, sizeof(int));
         offset += sizeof(int);
+        memcpy((char*)data + offset, isSystem.c_str(), systemLength);
+        offset += systemLength;
     }
 
     return 0;
@@ -239,17 +231,10 @@ RC RelationManager::createCatalog()
 
     fieldCount = tablesDescriptor.size();
 
-    configureTableData(fieldCount, nullFieldsIndicator, 1, "Tables", 1, tablesData);
+    configureTableData(fieldCount, nullFieldsIndicator, 1, "Tables", "yes", tablesData);
     _rbfm->insertRecord(fileHandle, tablesDescriptor, tablesData, rid);
 
-
-    void *attributeData;
-    _rbfm->readAttribute(fileHandle, tablesDescriptor, rid, "isSystem", attributeData);
-    cout << attributeData << endl;
-    
-
-
-    configureTableData(fieldCount, nullFieldsIndicator, 2, "Columns", 1, tablesData);
+    configureTableData(fieldCount, nullFieldsIndicator, 2, "Columns", "no", tablesData);
     _rbfm->insertRecord(fileHandle, tablesDescriptor, tablesData, rid);
     
     _rbfm->closeFile(fileHandle);
@@ -283,11 +268,14 @@ RC RelationManager::createCatalog()
     configureColumnsData(fieldCount, nullFieldsIndicator, 3, "column-type", TypeInt, 4, 3, columnsData);
     _rbfm->insertRecord(fileHandle, columnsDescriptor, columnsData, rid);
 
+
     configureColumnsData(fieldCount, nullFieldsIndicator, 4, "column-length", TypeInt, 4, 4, columnsData);
     _rbfm->insertRecord(fileHandle, columnsDescriptor, columnsData, rid);
+
     
     configureColumnsData(fieldCount, nullFieldsIndicator, 5, "column-position", TypeInt, 4, 5, columnsData);
     _rbfm->insertRecord(fileHandle, columnsDescriptor, columnsData, rid);
+
 
     
     _rbfm->closeFile(fileHandle);
