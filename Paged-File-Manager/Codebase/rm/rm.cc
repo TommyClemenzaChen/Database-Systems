@@ -29,6 +29,13 @@ int RelationManager::getNullIndicatorSize(int fieldCount) {
     return ceil((double) fieldCount / CHAR_BIT);
 }
 
+bool RelationManager::fieldIsNull(char *nullIndicator, int i)
+{
+    int indicatorIndex = i / CHAR_BIT;
+    int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
+    return (nullIndicator[indicatorIndex] & indicatorMask) != 0;
+}
+
 void RelationManager::createTablesDescriptor(vector<Attribute> &tablesDescriptor) {
     Attribute attr;
     attr.name = "table-id";
@@ -294,30 +301,34 @@ RC RelationManager::deleteCatalog()
 
 RC RelationManager::createTable(const string &tableName, const vector<Attribute> &attrs)
 {   
-    //opening catalog tables table
-    FileHandle tablesFH;
-    if (_rbfm->openFile("Tables.tbl", tablesFH) != SUCCESS) {
-        return -1;
-    }
-
-    //opening catalog columns table
-    FileHandle columnsFH;
-    if (_rbfm->openFile("Columns.tbl", columnsFH) != SUCCESS) {
-        return -1;
-    }
-    
-    //Creating and opening a new table file
-    if (_rbfm->createFile(tableName) != SUCCESS) {
-        return -1;
-    }
+    RID rid;
     FileHandle fileHandle;
-    if (_rbfm->openFile(tableName, fileHandle) != SUCCESS) {
+    int nullIndicatorSize;
+    unsigned char *nullFieldsIndicator;
+    int fieldCount;
+
+    //create the new table file
+    if(_rbfm->createFile(tableName + ".tbl") != SUCCESS) {
         return -1;
     }
 
-    _rbfm->closeFile(tablesFH);
-    _rbfm->closeFile(columnsFH);
-    _rbfm->closeFile(fileHandle);
+    //insert new table to catalog "Tables"
+    if (_rbfm->openFile("Tables.tbl") != SUCCESS) {
+        return -1;
+    }
+
+    int fieldCount = attrs.size();
+    nullIndicatorSize = getNullIndicatorSize(fieldCount);
+    nullFieldsIndicator = (unsigned char*)malloc(nullIndicatorSize);
+    
+    void *newTableData = malloc(PAGE_SIZE);
+    configureTableData(fieldCount, nullFieldsIndicator, )
+    RID rid;
+
+    _rbfm->insertRecord();
+
+
+    
 
     return 0;
 }
@@ -335,6 +346,8 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
     if (_rbfm->openFile(tableName + ".tbl", fileHandle) != SUCCESS) {
         return 0;
     }
+
+
     
 }
 
@@ -380,8 +393,15 @@ RC RelationManager::scan(const string &tableName,
         return -1;
     }
 
-    vector<Attribute> tableDescriptor;
+    vector<Attribute> recordDescriptor;
+    getAttributes(tableName, recordDescriptor);
 
+    RBFM_ScanIterator rbfm_ScanIterator;
+    _rbfm->scan(fileHandle, recordDescriptor, conditionAttribute, compOp, value, attributeNames, rbfm_ScanIterator);
+    rm_ScanIterator = RM_ScanIterator(rbfm_ScanIterator);
+
+
+    _rbfm->closeFile(fileHandle);
 
     return -1;
 }
