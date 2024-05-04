@@ -456,16 +456,14 @@ int RecordBasedFileManager::getNullIndicatorSize(int fieldCount)
     return int(ceil((double) fieldCount / CHAR_BIT));
 }
 
-bool RecordBasedFileManager::fieldIsNull(char *nullIndicator, int i)
-{
+bool RecordBasedFileManager::fieldIsNull(char *nullIndicator, int i) {
     int indicatorIndex = i / CHAR_BIT;
     int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
     return (nullIndicator[indicatorIndex] & indicatorMask) != 0;
 }
 
 // Computes the free space of a page (function of the free space pointer and the slot directory size).
-unsigned RecordBasedFileManager::getPageFreeSpaceSize(void * page) 
-{
+unsigned RecordBasedFileManager::getPageFreeSpaceSize(void * page) {
     SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(page);
     return slotHeader.freeSpaceOffset - slotHeader.recordEntriesNumber * sizeof(SlotDirectoryRecordEntry) - sizeof(SlotDirectoryHeader);
 }
@@ -687,7 +685,7 @@ bool RBFM_ScanIterator::isValid(SlotDirectoryRecordEntry recordEntry) {
 }
 
 bool RBFM_ScanIterator::checkCondition() {
-    // what we have: page number and slot number
+    // given the conditions: condition Attribute, comparison operator, and value to be compared:
     // what we need to do: see if read attribute matches cond attr
     void* data;
     
@@ -699,7 +697,7 @@ bool RBFM_ScanIterator::checkCondition() {
 }
 
 RC RBFM_ScanIterator::getNextSlot() {
-    RC = SUCCESS;
+    int RC = SUCCESS;
     SlotDirectoryHeader slotHeader;
     SlotDirectoryRecordEntry recordEntry;      
     void *pageData = malloc(PAGE_SIZE); // this could segfault if its recursive
@@ -733,13 +731,46 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) {
     if (rc) return rc;
     
     void *data2;
+
+    // Read in the null indicator
+    int nullIndicatorSize = getNullIndicatorSize(recordDescriptor.size());
+    char nullIndicator[nullIndicatorSize];
+    memset (nullIndicator, 0, nullIndicatorSize);
+    // memcpy(nullIndicator, (char*) data, nullIndicatorSize);
+
+    // Write out null indicator
+    memcpy(data, nullIndicator, nullIndicatorSize);
+
     // get projected attribute and populate *data with it
-    // projected attributes are in attrNames
-    // loop through attrNames vector
-    for (auto name : attrNames) {
-        // read in the condition attribute
-        if (readAttribute(fileHandle, RD, iterRid, name, data2) < 0) return false;    
+    
+    
+            // if rd.Name == attrNames.name, set nullIndicator to 1! (memcpy)
+                // memcpy that record attribute into *data
+                // totalAttrs++
+            // else, set nullIndicator to 0. (memcpy)
+    // at the end, record should be null
+    // idea is: you keep appending to data with more records and update the null indicators as you go
+    
+    // for every name in record descriptor, loop through attrNames to see if its a matching name
+    for (unsigned i = 0; i < RD.size(); i++)
+    {
+        if (fieldIsNull(nullIndicator, i))
+            continue;
+        // read in the attribute name in 
+        // readAttribute(fileHandle, RD, rid, RD[i].name, data3);
+        // loop through attrNames vector
+        for (auto name : attrNames) {
+        // read in the condition attributes
+            readAttribute(fileHandle, RD, iterRid, name, data2);    
+            if (name == RD[i].name) {
+                // set null indicator to 1
+            } else {
+                // set null indicator to 0
+            }
+        
+        }
     }
+    // memcpy record at iterRid but overwrite existing null indicators with new null indicators that only point to the projected attributes
 
     return SUCCESS; 
 }
