@@ -141,6 +141,8 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
 
     // Gets the slot directory record entry data
     SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
+    if(recordEntry.offset == 0)
+        return RBFM_SLOT_DELETED;
 
     // Retrieve the actual entry data
     getRecordAtOffset(pageData, recordEntry.offset, recordDescriptor, data);
@@ -212,8 +214,8 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
     return SUCCESS;
 }
 
-RC RecordBasedFileManager::deleteRecord (FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid){
 
+  RC RecordBasedFileManager::deleteRecord (FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid){
     void * pageData = malloc(PAGE_SIZE);
     if (fileHandle.readPage(rid.pageNum, pageData))
         return RBFM_READ_FAILED;
@@ -225,26 +227,48 @@ RC RecordBasedFileManager::deleteRecord (FileHandle &fileHandle, const vector<At
 
     // gets the slot record 
     SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
+    
+        if(recordEntry.offset == 0)
+        return RBFM_SLOT_DELETED;
 
     // copying the data that will overrite the deleted record
-    void * dataAddress = (char *)pageData + recordEntry.offset;
-    memcpy(dataAddress, (char *)dataAddress - recordEntry.length, recordEntry.offset - recordEntry.length - slotHeader.freeSpaceOffset);
+    // Check if pointer points at the head or tail of the record
+    void * destination = (char *)pageData + slotHeader.freeSpaceOffset + recordEntry.length;
+    void * source = (char *)pageData + slotHeader.freeSpaceOffset;
+    size_t nbytes = recordEntry.offset - slotHeader.freeSpaceOffset;
+    memcpy(destination, source, nbytes);  
+
+    // updates all address that occur before the deleted record
+    // determined by offset/address
+    for(int i = 0; i < slotHeader.recordEntriesNumber; i++){
+        SlotDirectoryRecordEntry record = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
+        if(record.offset < recordEntry.offset){
+            record.offset = record.offset + recordEntry.length;
+            // void * recordAddress = (char *)pageData + sizeof(SlotDirectory) + (i * sizeof(SlotDirectoryRecordEntry) - 1);
+            // memcpy()
+            setSlotDirectoryRecordEntry(pageData, i, record);
+        }
+        
+
+    }
+
+    // updating slot
+    recordEntry.length = 0;
+    recordEntry.offset = 0;
+    setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
 
     // updating slot header
     slotHeader.freeSpaceOffset = slotHeader.freeSpaceOffset + recordEntry.length;
-    memcpy(pageData, &slotHeader, sizeof(SlotDirectoryHeader));
-
-    recordEntry.length = 0;
-    recordEntry.offset = 0;
-
-    // updating slot
-    void * recordAddress = (char *)pageData + sizeof(SlotDirectory) + (rid.slotNum * sizeof(SlotDirectoryRecordEntry) - 1);
-    memcpy(recordAddress, &recordEntry, sizeof(SlotDirectoryRecordEntry));
+    setSlotDirectoryHeader(pageData, slotHeader);
 
     fileHandle.writePage(rid.pageNum, pageData);
 
+
     free(pageData);
+
     return SUCCESS;
+
+  
     
 }
 
@@ -359,6 +383,9 @@ RC RecordBasedFileManager::insertRecordOnPage(FileHandle &fileHandle, const vect
 
     return SUCCESS;
 }
+
+
+
 
 SlotDirectoryHeader RecordBasedFileManager::getSlotDirectoryHeader(void * page)
 {
@@ -596,6 +623,7 @@ void RecordBasedFileManager::setRecordAtOffset(void *page, unsigned offset, cons
     }
 }
 
+
 // Given a record descriptor, read a specific attribute of a record identified by a given rid.
 RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data) {
     int offset = 0;
@@ -790,4 +818,5 @@ RC RBFM_ScanIterator::close() {
     iterRid.pageNum = 0; iterRid.slotNum = 0;
     return SUCCESS;
 }
+
 
