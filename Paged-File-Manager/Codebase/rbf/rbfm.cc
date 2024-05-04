@@ -5,8 +5,8 @@
 #include <string.h>
 #include <iomanip>
 
-RecordBasedFileManager* RecordBasedFileManager::_rbf_manager = NULL;
-PagedFileManager *RecordBasedFileManager::_pf_manager = NULL;
+RecordBasedFileManager *RecordBasedFileManager::_rbf_manager = 0;
+PagedFileManager *RecordBasedFileManager::_pf_manager = 0;
 
 RecordBasedFileManager* RecordBasedFileManager::instance()
 {
@@ -298,31 +298,6 @@ const string &attributeName, void *data)
     return -1;
 }
 
-RBFM_ScanIterator::RBFM_ScanIterator() 
-{
-}
-
-RBFM_ScanIterator::~RBFM_ScanIterator()
-{
-}
-
-RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) { 
-    return RBFM_EOF; 
-}
-  
-RC RBFM_ScanIterator::close() { 
-    return -1; 
-}
-
-RC RecordBasedFileManager::scan(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const string &conditionAttribute,
-const CompOp compOp, const void *value, const vector<string> &attributeNames, RBFM_ScanIterator &rbfm_ScanIterator)
-{
-    //go through each page, read each entry
-    return 0;
-    
- 
-}
-
 //Helper Functions
 
 SlotDirectoryHeader RecordBasedFileManager::getSlotDirectoryHeader(void * page)
@@ -561,4 +536,178 @@ void RecordBasedFileManager::setRecordAtOffset(void *page, unsigned offset, cons
         memcpy(start + header_offset, &rec_offset, sizeof(ColumnOffset));
         header_offset += sizeof(ColumnOffset);
     }
+}
+
+RecordBasedFileManager* RBFM_ScanIterator::_rbfmHelper = 0;
+//RBFM_ScanIterator Class
+
+RBFM_ScanIterator* RBFM_ScanIterator::instance()
+{
+    if(!_rbfm_iterator)
+        _rbfm_iterator= new RBFM_ScanIterator();
+
+    return _rbfm_iterator;
+}
+RBFM_ScanIterator::RBFM_ScanIterator() 
+{
+    _rbfmHelper = RecordBasedFileManager::instance();
+}
+
+RBFM_ScanIterator::~RBFM_ScanIterator()
+{
+}
+
+RC RBFM_ScanIterator::getNextSlot() {
+    SlotDirectoryHeader slotHeader;
+    SlotDirectoryRecordEntry recordEntry;    
+
+    slotHeader = _rbfmHelper->insertRecord()
+    
+    void *pageData = malloc(PAGE_SIZE); // this could segfault if its recursive
+
+    // increment iterator, handle case where you reach end of page and need new page
+    for (int i = 0; i < )
+    if (iterRid.slotNum >= totalSlots && (iterRid.pageNum < numPages)) {
+        iterRid.pageNum++; // read new page
+        iterRid.slotNum = 0;
+        if (pageData == NULL) return RBFM_MALLOC_FAILED;
+
+        slotHeader = getSlotDirectoryHeader(pageData);
+        recordEntry = getSlotDirectoryRecordEntry(pageData, iterRid.slotNum);
+        totalSlots = slotHeader.recordEntriesNumber;
+        if (!isValid(recordEntry) || !checkCondition()) {
+            return getNextSlot();
+        }
+    }
+    else if (iterRid.pageNum >= numPages) RC = -1;
+
+    free(pageData);
+    return 0;
+}
+
+RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) { 
+    RBFM
+    if (currPos < rids.size()) {
+        rid = rids[currPos];
+        memcpy(data, da)
+    }
+    return RBFM_EOF; 
+}
+  
+RC RBFM_ScanIterator::close() { 
+    return -1; 
+}
+
+RC RecordBasedFileManager::scan(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const string &conditionAttribute,
+const CompOp compOp, const void *value, const vector<string> &attributeNames, RBFM_ScanIterator &rbfm_ScanIterator)
+{
+    rbfm_ScanIterator.fileHandle = fileHandle;
+    rbfm_ScanIterator.compOp = compOp;
+    rbfm_ScanIterator.RD = recordDescriptor;
+    rbfm_ScanIterator.condAttr = conditionAttribute;
+    rbfm_ScanIterator.val = value;
+    rbfm_ScanIterator.attrNames = attributeNames;
+    rbfm_ScanIterator.iterRid.pageNum = 0;
+    rbfm_ScanIterator.iterRid.slotNum = 0;
+    rbfm_ScanIterator.numPages = fileHandle.getNumberOfPages(); 
+    rbfm_ScanIterator.totalSlots = 0;
+
+    return 0;
+}
+
+bool RBFM_ScanIterator::checkCondition(AttrType attrType, void *temp, int stringLength, CompOp compOp, const void *value) {
+    int tempInteger;
+    float tempFloat;
+    char *tempString;
+
+    int valueInteger;
+    float valueFloat;
+    char *valueString;
+
+
+    switch (attrType) {
+        case TypeInt:
+            memcpy(&tempInteger, temp, INT_SIZE);
+            memcpy(&valueInteger, value, INT_SIZE);
+            break;
+    
+        case TypeReal:
+            memcpy(&tempFloat, temp, REAL_SIZE);
+            memcpy(&valueFloat, value, REAL_SIZE);
+            break;
+        
+        case TypeVarChar:
+            tempString = (char*)malloc(stringLength + 1);
+            memcpy(tempString, temp, stringLength);
+            tempString[stringLength] = '\0';
+            
+            valueString == (char*)malloc(50);
+            memcpy(valueString, value, 50);
+            valueString[stringLength] = '\0';
+    }
+    
+    
+    bool condition = false;
+    switch (compOp)
+	{
+		case EQ_OP:  
+            if (attrType == TypeInt)
+                condition = (tempInteger == valueInteger);
+            else if (attrType == TypeReal)
+                condition = (tempFloat == valueFloat);
+            else   
+                condition = (strcmp(tempString, valueString) == 0);
+            break;
+		
+        case LT_OP:  
+            if (attrType == TypeInt)
+                condition = (tempInteger < valueInteger);
+            else if (attrType == TypeReal)
+                condition = (tempFloat < valueFloat);
+            else   
+                condition = (strcmp(tempString, valueString) < 0);
+            break;
+		
+        case GT_OP:  
+			if (attrType == TypeInt)
+                condition = (tempInteger > valueInteger);
+            else if (attrType == TypeReal)
+                condition = (tempFloat > valueFloat);
+            else   
+                condition = (strcmp(tempString, valueString) > 0);
+            break;
+	
+        case LE_OP:  
+			if (attrType == TypeInt)
+                condition = (tempInteger <= valueInteger);
+            else if (attrType == TypeReal)
+                condition = (tempFloat <= valueFloat);
+            else   
+                condition = (strcmp(tempString, valueString) <= 0);
+            break;
+		
+        case GE_OP:  
+			if (attrType == TypeInt)
+                condition = (tempInteger >= valueInteger);
+            else if (attrType == TypeReal)
+                condition = (tempFloat >= valueFloat);
+            else   
+                condition = (strcmp(tempString, valueString) >= 0);
+            break;
+		
+        case NE_OP:  
+			if (attrType == TypeInt)
+                condition = (tempInteger != valueInteger);
+            else if (attrType = TypeReal)
+                condition = (tempFloat != valueFloat);
+            else   
+                condition = (strcmp(tempString, valueString) != 0);
+            break;
+		
+        case NO_OP: 
+			condition = true;
+		    break;
+	}
+
+    return condition;
 }

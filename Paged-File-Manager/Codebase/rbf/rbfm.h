@@ -86,6 +86,7 @@ The scan iterator is NOT required to be implemented for the part 1 of the projec
 
 class RBFM_ScanIterator {
 public:
+  static RBFM_ScanIterator* instance();
   RBFM_ScanIterator();
   ~RBFM_ScanIterator();
   // Never keep the results in the memory. When getNextRecord() is called, 
@@ -93,6 +94,28 @@ public:
   // "data" follows the same format as RecordBasedFileManager::insertRecord().
   RC getNextRecord(RID &rid, void *data);
   RC close();
+
+
+  FileHandle fileHandle;
+  CompOp compOp;
+  vector<Attribute> RD;
+  string condAttr;
+  vector<string> attrNames;
+  const void *val;
+  RID iterRid;
+  unsigned currPage;
+  unsigned totalSlots;
+  
+
+private:
+  static RBFM_ScanIterator* _rbfm_iterator;
+  static RecordBasedFileManager* _rbfmHelper;
+
+
+  RC getNextSlot();
+  bool isValid(SlotDirectoryRecordEntry recordEntry);
+  bool checkCondition(AttrType attrType, void *temp, int stringLength, CompOp compOp, const void *value);
+
 };
 
 
@@ -153,15 +176,15 @@ IMPORTANT, PLEASE READ: All methods below this comment (other than the construct
       const vector<string> &attributeNames, // a list of projected attributes
       RBFM_ScanIterator &rbfm_ScanIterator);
 
-public:
-
-protected:
+  public:
+  protected:
   RecordBasedFileManager();
   ~RecordBasedFileManager();
 
 private:
   static RecordBasedFileManager *_rbf_manager;
   static PagedFileManager *_pf_manager;
+  static RBFM_ScanIterator *_rbfm;
 
   // Private helper methods
 
@@ -181,6 +204,9 @@ private:
 
   void setRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, const void *data);
   void getRecordAtOffset(void *record, unsigned offset, const vector<Attribute> &recordDescriptor, void *data);
+  
+
+
 };
 
 #endif
