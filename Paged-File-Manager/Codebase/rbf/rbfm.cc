@@ -224,7 +224,6 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
         return -1;
     }
 
-    SlotDirectoryRecordEntry deadRecord
     return 0;
 }
 
@@ -234,17 +233,92 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector <At
 }
 
 RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector <Attribute> &recordDescriptor, const RID &rid,
-const string attributeName, void *data) 
+const string &attributeName, void *data) 
 {
+    int offset = 0;
 
+    void *pageData = malloc(PAGE_SIZE);
+    fileHandle.readPage(rid.pageNum, pageData);
 
-    return 0;
+     // Gets the slot directory record entry data
+    SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
+
+    // Retrieve the actual entry data
+    void *recordData = malloc(recordEntry.length);
+    getRecordAtOffset(recordData, recordEntry.offset, recordDescriptor, recordData);
+
+    //setting up null field indicator
+    int nullIndicatorSize = getNullIndicatorSize(recordDescriptor.size());
+    char* nullIndicator = (char*)malloc(nullIndicatorSize);
+    memcpy(nullIndicator, recordData, nullIndicatorSize);
+    offset += nullIndicatorSize;
+
+    //offset should be 1 at this point
+
+    for (int i = 0; i < recordDescriptor.size(); i++) {
+        bool isNull = fieldIsNull(nullIndicator, i);
+        if (recordDescriptor[i].name != attributeName) {
+            switch (recordDescriptor[i].type)
+            {
+                case TypeInt:
+                    offset += INT_SIZE;
+                    break;
+
+                case TypeReal:
+                    offset += REAL_SIZE;
+                    break;
+                case TypeVarChar:
+                    uint32_t attrLength;
+                    memcpy(&attrLength, (char*)recordData + offset, VARCHAR_LENGTH_SIZE);
+                    offset += VARCHAR_LENGTH_SIZE;
+                    offset += attrLength;
+                    
+            }
+        }
+        else {
+            switch (recordDescriptor[i].type)
+            {
+                case TypeInt:
+                    memcpy(data, (char*)recordData + offset, INT_SIZE);
+                    return 0;
+                case TypeReal:
+                    memcpy(data, (char*)recordData + offset, REAL_SIZE);
+                    return 0;
+                case TypeVarChar:
+                    uint32_t attrLength;
+                    memcpy(&attrLength, (char*)recordData + offset, VARCHAR_LENGTH_SIZE);
+                    offset += VARCHAR_LENGTH_SIZE;
+                    memcpy(data, (char*)recordData + offset, attrLength);
+                    return 0;
+            }
+        }
+    }
+
+    return -1; //should never get here
+}
+
+RBFM_ScanIterator::RBFM_ScanIterator() 
+{
+}
+
+RBFM_ScanIterator::~RBFM_ScanIterator()
+{
+}
+
+RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) { 
+    return RBFM_EOF; 
+}
+  
+RC RBFM_ScanIterator::close() { 
+    return -1; 
 }
 
 RC RecordBasedFileManager::scan(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const string &conditionAttribute,
 const CompOp compOp, const void *value, const vector<string> &attributeNames, RBFM_ScanIterator &rbfm_ScanIterator)
 {
-
+    //go through each page, read each entry
+    return 0;
+    
  
 }
 

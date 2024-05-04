@@ -243,6 +243,12 @@ RC RelationManager::createCatalog()
     _rbfm->insertRecord(fileHandle, tablesDescriptor, tablesData, rid);
 
 
+    void *attributeData;
+    _rbfm->readAttribute(fileHandle, tablesDescriptor, rid, "isSystem", attributeData);
+    cout << attributeData << endl;
+    
+
+
     configureTableData(fieldCount, nullFieldsIndicator, 2, "Columns", 1, tablesData);
     _rbfm->insertRecord(fileHandle, tablesDescriptor, tablesData, rid);
     
@@ -321,10 +327,6 @@ RC RelationManager::createTable(const string &tableName, const vector<Attribute>
         return -1;
     }
 
-    
-
-
-
     _rbfm->closeFile(tablesFH);
     _rbfm->closeFile(columnsFH);
     _rbfm->closeFile(fileHandle);
@@ -345,7 +347,6 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
     if (_rbfm->openFile(tableName + ".tbl", fileHandle) != SUCCESS) {
         return 0;
     }
-    for (int i = 0; i < )
     
 }
 
@@ -386,13 +387,13 @@ RC RelationManager::scan(const string &tableName,
       const vector<string> &attributeNames,
       RM_ScanIterator &rm_ScanIterator)
 {
-    Filehandle fileHandle;
+    FileHandle fileHandle;
     if (_rbfm->openFile(tableName + ".tbl", fileHandle) != SUCCESS) {
         return -1;
     }
 
     vector<Attribute> tableDescriptor;
-    getAttributes()
+
 
     return -1;
 }
