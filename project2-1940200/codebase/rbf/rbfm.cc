@@ -657,7 +657,7 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
         }
     }
 
-    return -1; //should never get here
+    return -1; // should never get here
     
 }
 
@@ -702,6 +702,7 @@ RC RBFM_ScanIterator::getNextSlot() {
     SlotDirectoryRecordEntry recordEntry;      
     void *pageData = malloc(PAGE_SIZE); // this could segfault if its recursive
 
+
     // increment iterator, handle case where you reach end of page and need new page
     iterRid.slotNum++;
     if (iterRid.slotNum >= totalSlots && (iterRid.pageNum < numPages)) {
@@ -709,6 +710,8 @@ RC RBFM_ScanIterator::getNextSlot() {
         iterRid.slotNum = 0;
         if (pageData == NULL) return RBFM_MALLOC_FAILED;
 
+        // read in pageData
+        fileHandle.readPage(rid.pageNum, pageData);
         slotHeader = getSlotDirectoryHeader(pageData);
         recordEntry = getSlotDirectoryRecordEntry(pageData, iterRid.slotNum);
         totalSlots = slotHeader.recordEntriesNumber;
@@ -727,50 +730,56 @@ RC RBFM_ScanIterator::getNextSlot() {
 // "data" follows the same format as RecordBasedFileManager::insertRecord().
 RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) { 
     int rc = getNextSlot(); // now the slot is in iterRid
-
     if (rc) return rc;
     
-    void *data2;
-
-    // Read in the null indicator
-    int nullIndicatorSize = getNullIndicatorSize(recordDescriptor.size());
-    char nullIndicator[nullIndicatorSize];
-    memset (nullIndicator, 0, nullIndicatorSize);
-    // memcpy(nullIndicator, (char*) data, nullIndicatorSize);
-
-    // Write out null indicator
-    memcpy(data, nullIndicator, nullIndicatorSize);
-
-    // get projected attribute and populate *data with it
     
     
-            // if rd.Name == attrNames.name, set nullIndicator to 1! (memcpy)
-                // memcpy that record attribute into *data
-                // totalAttrs++
-            // else, set nullIndicator to 0. (memcpy)
-    // at the end, record should be null
-    // idea is: you keep appending to data with more records and update the null indicators as you go
+    void *pageData = malloc(PAGE_SIZE);
     
+    // read in pageData
+    fileHandle.readPage(iterRid.pageNum, pageData);
+    SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, iterRid.slotNum);
+    
+    const void *OGdata = malloc(recordEntry.length);
+    getRecordAtOffset(pageData, recordEntry.offset, RD, OGdata);
+
+    unsigned OGRecordSize = getRecordSize(RD, OGdata);
+
+    // Read in the null indicator from iterRid
+    unsigned OGNullIndicatorSize = getNullIndicatorSize(RD.size());
+    char* nullIndicator = (char*)malloc(OGNullIndicatorSize);
+    memcpy(nullIndicator, OGData, OGNullIndicatorSize);
+
+    // setting up new null field indicator
+    unsigned char* newNullIndicator[OGNullIndicatorSize];
+    
+    // filter the *data so that the null indicators are only pointing at the projected Attributes in "attrNames"
     // for every name in record descriptor, loop through attrNames to see if its a matching name
     for (unsigned i = 0; i < RD.size(); i++)
     {
-        if (fieldIsNull(nullIndicator, i))
+        // if the existing nullIndicator is NULL at this field, set new nullIndicator to 0
+        if (fieldIsNull(nullIndicator, i)) {
+            // set new null indicator to 0
+            newNullIndicator[i] = 0;
             continue;
-        // read in the attribute name in 
-        // readAttribute(fileHandle, RD, rid, RD[i].name, data3);
+        }
         // loop through attrNames vector
         for (auto name : attrNames) {
-        // read in the condition attributes
-            readAttribute(fileHandle, RD, iterRid, name, data2);    
+            // if projected attribute is found in the recordDescriptor, set null indicator to 1
             if (name == RD[i].name) {
                 // set null indicator to 1
+                newNullIndicator[i] = 1;
             } else {
                 // set null indicator to 0
-            }
-        
+                newNullIndicator[i] = 0;
+            }        
         }
     }
     // memcpy record at iterRid but overwrite existing null indicators with new null indicators that only point to the projected attributes
+    // 1) store OG data into data
+    memcpy(data, OGData, OGRecordSize);
+    // 2) overwrite nullindicator bytes from data to have new null indicator bytes
+    memcpy(data, newNullIndicator, OGNullIndicatorSize);
 
     return SUCCESS; 
 }
