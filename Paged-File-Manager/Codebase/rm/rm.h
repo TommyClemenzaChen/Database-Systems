@@ -16,7 +16,7 @@ using namespace std;
 // RM_ScanIterator is an iteratr to go through tuples
 class RM_ScanIterator {
 public:
-  RM_ScanIterator(RBFM_ScanIterator &rbfm_ScanIterator);
+  RM_ScanIterator();
   ~RM_ScanIterator();
 
   // "data" follows the same format as RelationManager::insertTuple()

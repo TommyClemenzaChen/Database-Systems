@@ -556,6 +556,9 @@ void RecordBasedFileManager::setRecordAtOffset(void *page, unsigned offset, cons
     }
 }
 
+//RBFM_ScanIterator Class
+RBFM_ScanIterator *RBFM_ScanIterator::_rbf_iterator = 0;
+RecordBasedFileManager *RBFM_ScanIterator::_rbfmHelper = 0;
 
 RBFM_ScanIterator* RBFM_ScanIterator::instance()
 {
@@ -564,11 +567,10 @@ RBFM_ScanIterator* RBFM_ScanIterator::instance()
 
     return _rbf_iterator;
 }
-//RBFM_ScanIterator Class
-RecordBasedFileManager* RBFM_ScanIterator::_rbfm = 0;
 
 RBFM_ScanIterator::RBFM_ScanIterator() 
 {
+    _rbfmHelper = RecordBasedFileManager::instance();
 }
 
 RBFM_ScanIterator::~RBFM_ScanIterator()
@@ -616,11 +618,11 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) {
     while (getNextValidSlot(rid) != SUCCESS);
 
     //rid is valid -> readRecord at rid
-    _rbfm->readRecord(fileHandle, RD, rid, data);
+    _rbfmHelper->readRecord(fileHandle, RD, rid, data);
 
     //check each attribute
     void *temp;
-    _rbfm->eadAttribute(fileHandle, RD, rid, condAttr, temp);
+    _rbfmHelper->readAttribute(fileHandle, RD, rid, condAttr, temp);
 
     //checkCondition
     if (!checkCondition(condAttr, RD, temp, compOp, val)) {

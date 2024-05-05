@@ -15,6 +15,9 @@ RelationManager* RelationManager::instance()
 
 RelationManager::RelationManager()
 {
+    //create RBFM instance
+    _rbfm = RecordBasedFileManager::instance();
+    
 
 }
 
@@ -402,10 +405,11 @@ RC RelationManager::scan(const string &tableName,
     getAttributes(tableName, recordDescriptor);
 
     RBFM_ScanIterator rbfm_ScanIterator;
+    /*
     _rbfm->scan(fileHandle, recordDescriptor, conditionAttribute, compOp, value, attributeNames, rbfm_ScanIterator);
     rm_ScanIterator = RM_ScanIterator(rbfm_ScanIterator);
 
-
+    */  
     _rbfm->closeFile(fileHandle);
 
     return -1;
