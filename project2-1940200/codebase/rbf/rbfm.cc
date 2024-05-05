@@ -241,14 +241,16 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
 
     }
 
+    // updating slot header
+    slotHeader.freeSpaceOffset = slotHeader.freeSpaceOffset + recordEntry.length;
+    setSlotDirectoryHeader(pageData, slotHeader);
+
     // updating slot
     recordEntry.length = 0;
     recordEntry.offset = 0;
     setSlotDirectoryRecordEntry(pageData, rid.slotNum, recordEntry);
 
-    // updating slot header
-    slotHeader.freeSpaceOffset = slotHeader.freeSpaceOffset + recordEntry.length;
-    setSlotDirectoryHeader(pageData, slotHeader);
+    
 
     fileHandle.writePage(rid.pageNum, pageData);
 
