@@ -6,9 +6,21 @@ typedef int RC;
 typedef char byte;
 
 #define PAGE_SIZE 4096
+#define SUCCESS 0
+
+#define PFM_FILE_EXISTS   1
+#define PFM_OPEN_FAILED   2
+#define PFM_REMOVE_FAILED 3
+#define PFM_HANDLE_IN_USE 4
+#define PFM_FILE_DN_EXIST 5
+#define PFM_FILE_NOT_OPEN 6
+
+#define FH_PAGE_DN_EXIST  1
+#define FH_SEEK_FAILED    2
+#define FH_READ_FAILED    3
+#define FH_WRITE_FAILED   4
 #include <string>
 #include <climits>
-#include <iostream>
 using namespace std;
 
 class FileHandle;
@@ -35,7 +47,7 @@ private:
 class FileHandle
 {
 public:
-    // variables to keep the counter for each operation
+    // Variables to keep a count for each operation
 	unsigned readPageCounter;
 	unsigned writePageCounter;
 	unsigned appendPageCounter;
@@ -49,13 +61,15 @@ public:
     unsigned getNumberOfPages();                                        // Get the number of pages in the file
     RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount);  // Put the current counter values into variables
 
-
-    FILE* getFilePointer();
-    void setFilePointer(FILE* fp);
+    // Let PagedFileManager access our private helper methods
+    friend class PagedFileManager;
 
 private:
-    FILE* _fp;
+    FILE *_fd;
 
+    // Private helper methods
+    void setfd(FILE *fd);
+    FILE *getfd();
 }; 
 
 #endif
