@@ -298,6 +298,24 @@ const string &attributeName, void *data)
     return -1;
 }
 
+RC RecordBasedFileManager::scan(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const string &conditionAttribute,
+const CompOp compOp, const void *value, const vector<string> &attributeNames, RBFM_ScanIterator &rbfm_ScanIterator)
+{
+    rbfm_ScanIterator.fileHandle = fileHandle;
+    rbfm_ScanIterator.compOp = compOp;
+    rbfm_ScanIterator.RD = recordDescriptor;
+    rbfm_ScanIterator.condAttr = conditionAttribute;
+    rbfm_ScanIterator.val = value;
+    rbfm_ScanIterator.attrNames = attributeNames;
+    rbfm_ScanIterator.iterRid.pageNum = 0;
+    rbfm_ScanIterator.iterRid.slotNum = 0;
+    rbfm_ScanIterator.currPageNum = fileHandle.getNumberOfPages(); 
+    rbfm_ScanIterator.totalSlots = 0;
+
+    return 0;
+}
+
+
 //Helper Functions
 
 SlotDirectoryHeader RecordBasedFileManager::getSlotDirectoryHeader(void * page)
@@ -538,84 +556,87 @@ void RecordBasedFileManager::setRecordAtOffset(void *page, unsigned offset, cons
     }
 }
 
-RecordBasedFileManager* RBFM_ScanIterator::_rbfmHelper = 0;
-//RBFM_ScanIterator Class
 
 RBFM_ScanIterator* RBFM_ScanIterator::instance()
 {
-    if(!_rbfm_iterator)
-        _rbfm_iterator= new RBFM_ScanIterator();
+    if(!_rbf_iterator)
+        _rbf_iterator = new RBFM_ScanIterator;
 
-    return _rbfm_iterator;
+    return _rbf_iterator;
 }
+//RBFM_ScanIterator Class
+RecordBasedFileManager* RBFM_ScanIterator::_rbfm = 0;
+
 RBFM_ScanIterator::RBFM_ScanIterator() 
 {
-    _rbfmHelper = RecordBasedFileManager::instance();
 }
 
 RBFM_ScanIterator::~RBFM_ScanIterator()
 {
 }
 
-RC RBFM_ScanIterator::getNextSlot() {
+RC RBFM_ScanIterator::getNextValidSlot(RID &rid) {
+    void *pageData = malloc(PAGE_SIZE);
+    fileHandle.readPage(rid.pageNum, pageData);
+
     SlotDirectoryHeader slotHeader;
-    SlotDirectoryRecordEntry recordEntry;    
+    memcpy(&slotHeader, pageData, sizeof(SlotDirectoryHeader));
 
-    slotHeader = _rbfmHelper->insertRecord()
-    
-    void *pageData = malloc(PAGE_SIZE); // this could segfault if its recursive
-
-    // increment iterator, handle case where you reach end of page and need new page
-    for (int i = 0; i < )
-    if (iterRid.slotNum >= totalSlots && (iterRid.pageNum < numPages)) {
-        iterRid.pageNum++; // read new page
-        iterRid.slotNum = 0;
-        if (pageData == NULL) return RBFM_MALLOC_FAILED;
-
-        slotHeader = getSlotDirectoryHeader(pageData);
-        recordEntry = getSlotDirectoryRecordEntry(pageData, iterRid.slotNum);
-        totalSlots = slotHeader.recordEntriesNumber;
-        if (!isValid(recordEntry) || !checkCondition()) {
-            return getNextSlot();
-        }
+    //do we need to go to next page?
+    if (rid.slotNum > slotHeader.recordEntriesNumber) {
+        rid.pageNum += 1;
+        rid.slotNum = 0;
     }
-    else if (iterRid.pageNum >= numPages) RC = -1;
 
-    free(pageData);
-    return 0;
+    //find the next valid slot
+    SlotDirectoryRecordEntry recordEntry;
+
+    memcpy  (
+        &recordEntry,
+        ((char*)pageData + sizeof(SlotDirectoryHeader) + rid.slotNum * sizeof(SlotDirectoryRecordEntry)),
+        sizeof(SlotDirectoryRecordEntry)
+    );
+    
+    if (recordEntry.length > 0 && recordEntry.offset > 0) {
+        //we've found the next valid slot
+        return SUCCESS;
+    }
+    
+    rid.slotNum += 1;
+
+    return -1;
 }
 
 RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) { 
-    RBFM
-    if (currPos < rids.size()) {
-        rid = rids[currPos];
-        memcpy(data, da)
+
+    void *pageData = malloc(4096);
+    fileHandle.readPage(currPageNum, pageData);
+
+    //get next valid slot first
+    while (getNextValidSlot(rid) != SUCCESS);
+
+    //rid is valid -> readRecord at rid
+    _rbfm->readRecord(fileHandle, RD, rid, data);
+
+    //check each attribute
+    void *temp;
+    _rbfm->eadAttribute(fileHandle, RD, rid, condAttr, temp);
+
+    //checkCondition
+    if (!checkCondition(condAttr, RD, temp, compOp, val)) {
+        return -1;
     }
-    return RBFM_EOF; 
+
+    return 0;
+    
 }
   
 RC RBFM_ScanIterator::close() { 
     return -1; 
 }
 
-RC RecordBasedFileManager::scan(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const string &conditionAttribute,
-const CompOp compOp, const void *value, const vector<string> &attributeNames, RBFM_ScanIterator &rbfm_ScanIterator)
-{
-    rbfm_ScanIterator.fileHandle = fileHandle;
-    rbfm_ScanIterator.compOp = compOp;
-    rbfm_ScanIterator.RD = recordDescriptor;
-    rbfm_ScanIterator.condAttr = conditionAttribute;
-    rbfm_ScanIterator.val = value;
-    rbfm_ScanIterator.attrNames = attributeNames;
-    rbfm_ScanIterator.iterRid.pageNum = 0;
-    rbfm_ScanIterator.iterRid.slotNum = 0;
-    rbfm_ScanIterator.numPages = fileHandle.getNumberOfPages(); 
-    rbfm_ScanIterator.totalSlots = 0;
 
-    return 0;
-}
-
-bool RBFM_ScanIterator::checkCondition(AttrType attrType, void *temp, int stringLength, CompOp compOp, const void *value) {
+bool RBFM_ScanIterator::checkCondition(const string &condAttr, const vector<Attribute> &recordDescriptor, void *temp, CompOp compOp, const void *value) {
     int tempInteger;
     float tempFloat;
     char *tempString;
@@ -624,6 +645,13 @@ bool RBFM_ScanIterator::checkCondition(AttrType attrType, void *temp, int string
     float valueFloat;
     char *valueString;
 
+    //use recordDescriptor to check what attrtype the condition attribute is
+    AttrType attrType;
+    for (const auto& attr : recordDescriptor) {
+        if (attr.name.compare(condAttr) == 0) {
+            attrType = attr.type;
+        }
+    }
 
     switch (attrType) {
         case TypeInt:
@@ -637,11 +665,12 @@ bool RBFM_ScanIterator::checkCondition(AttrType attrType, void *temp, int string
             break;
         
         case TypeVarChar:
-            tempString = (char*)malloc(stringLength + 1);
-            memcpy(tempString, temp, stringLength);
-            tempString[stringLength] = '\0';
+            tempString = (char*)malloc(51);
+            memcpy(tempString, temp, 51);
             
-            valueString == (char*)malloc(50);
+            int stringLength = strlen(tempString);
+            
+            valueString = (char*)malloc(51);
             memcpy(valueString, value, 50);
             valueString[stringLength] = '\0';
     }
@@ -698,7 +727,7 @@ bool RBFM_ScanIterator::checkCondition(AttrType attrType, void *temp, int string
         case NE_OP:  
 			if (attrType == TypeInt)
                 condition = (tempInteger != valueInteger);
-            else if (attrType = TypeReal)
+            else if (attrType == TypeReal)
                 condition = (tempFloat != valueFloat);
             else   
                 condition = (strcmp(tempString, valueString) != 0);
@@ -708,6 +737,11 @@ bool RBFM_ScanIterator::checkCondition(AttrType attrType, void *temp, int string
 			condition = true;
 		    break;
 	}
+
+    if (valueString != NULL && tempString != NULL) {
+        free(valueString);
+        free(tempString);
+    }
 
     return condition;
 }

@@ -15,9 +15,6 @@ RelationManager* RelationManager::instance()
 
 RelationManager::RelationManager()
 {
-    //create RBFM instance
-    _rbfm = RecordBasedFileManager::instance();
-    
 
 }
 
@@ -313,20 +310,28 @@ RC RelationManager::createTable(const string &tableName, const vector<Attribute>
     }
 
     //insert new table to catalog "Tables"
-    if (_rbfm->openFile("Tables.tbl") != SUCCESS) {
+    if (_rbfm->openFile("Tables.tbl", fileHandle) != SUCCESS) {
         return -1;
     }
 
-    int fieldCount = attrs.size();
+    fieldCount = attrs.size();
     nullIndicatorSize = getNullIndicatorSize(fieldCount);
     nullFieldsIndicator = (unsigned char*)malloc(nullIndicatorSize);
+
     
+    vector<string> attributeNames;
+    for (const auto& attr : attrs) {
+        attributeNames.push_back(attr.name);
+    }
+
+    RBFM_ScanIterator rbfmSI;
+    _rbfm->scan(fileHandle, attrs, "", NO_OP, NULL, attributeNames, rbfmSI);
+
+    cout << rbfmSI.totalSlots << endl;
+
     void *newTableData = malloc(PAGE_SIZE);
-    configureTableData(fieldCount, nullFieldsIndicator, )
-    RID rid;
-
-    _rbfm->insertRecord();
-
+    configureTableData(fieldCount, nullFieldsIndicator, rbfmSI.totalSlots, tableName, 0, newTableData);
+    _rbfm->insertRecord(fileHandle, attrs, newTableData, rid);
 
     
 

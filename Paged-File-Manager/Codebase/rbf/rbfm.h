@@ -86,15 +86,15 @@ The scan iterator is NOT required to be implemented for the part 1 of the projec
 
 class RBFM_ScanIterator {
 public:
-  static RBFM_ScanIterator* instance();
   RBFM_ScanIterator();
   ~RBFM_ScanIterator();
   // Never keep the results in the memory. When getNextRecord() is called, 
   // a satisfying record needs to be fetched from the file.
   // "data" follows the same format as RecordBasedFileManager::insertRecord().
   RC getNextRecord(RID &rid, void *data);
+  RC getNextValidSlot(RID &rid);
+  
   RC close();
-
 
   FileHandle fileHandle;
   CompOp compOp;
@@ -103,18 +103,16 @@ public:
   vector<string> attrNames;
   const void *val;
   RID iterRid;
-  unsigned currPage;
+  unsigned currPageNum;
+  unsigned currSlotNum;
   unsigned totalSlots;
+  unsigned totalPages;
   
 
 private:
-  static RBFM_ScanIterator* _rbfm_iterator;
-  static RecordBasedFileManager* _rbfmHelper;
 
-
-  RC getNextSlot();
   bool isValid(SlotDirectoryRecordEntry recordEntry);
-  bool checkCondition(AttrType attrType, void *temp, int stringLength, CompOp compOp, const void *value);
+  bool checkCondition(const string &condAttr, const vector<Attribute> &recordDescriptor, void *temp, CompOp compOp, const void *value);
 
 };
 
@@ -184,7 +182,7 @@ IMPORTANT, PLEASE READ: All methods below this comment (other than the construct
 private:
   static RecordBasedFileManager *_rbf_manager;
   static PagedFileManager *_pf_manager;
-  static RBFM_ScanIterator *_rbfm;
+  
 
   // Private helper methods
 
