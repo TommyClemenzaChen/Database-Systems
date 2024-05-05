@@ -85,22 +85,33 @@ The scan iterator is NOT required to be implemented for the part 1 of the projec
 //  rbfmScanIterator.close();
 
 class RBFM_ScanIterator {
+  private:
+    RC getNextSlot();
+    bool isValid(SlotDirectoryRecordEntry recordEntry);
+    bool checkCondition();
 public:
-  RBFM_ScanIterator() {};
-  ~RBFM_ScanIterator() {};
+    RBFM_ScanIterator(RecordBasedFileManager* rbfm) : rbfmInstance(rbfm) {}    
+    ~RBFM_ScanIterator() {};
+    // RBFM_ScanIterator() {};
+    
+    // RBFM_ScanIterator(const CompOp compOp, const vector<Attribute>& recordDescriptor, const string& conditionAttribute, const vector<string>& attributeNames, FileHandle& fh) : comp(compOp), RD(recordDescriptor), condAttr(conditionAttribute), attrNames(attributeNames), val(nullptr), iterRid({0, 0}), numPages(0), totalSlots(0), fileHandle(fh) {}
+    // ~RBFM_ScanIterator() {};
 
-  // Never keep the results in the memory. When getNextRecord() is called, 
-  // a satisfying record needs to be fetched from the file.
-  // "data" follows the same format as RecordBasedFileManager::insertRecord().
-  RC getNextRecord(RID &rid, void *data) { return RBFM_EOF; };
-  RC close() { return -1; };
+    RC getNextRecord(RID &rid, void *data);
+    RC close();
+
 };
 
 
 class RecordBasedFileManager
 {
+    // Declare RBFM_ScanIterator as a friend class
+    friend class RBFM_ScanIterator;
 public:
-  static RecordBasedFileManager* instance();
+static RecordBasedFileManager* instance() {
+        static RecordBasedFileManager instance;
+        return &instance;
+    }
 
   RC createFile(const string &fileName);
   
@@ -143,6 +154,7 @@ IMPORTANT, PLEASE READ: All methods below this comment (other than the construct
   // Assume the RID does not change after an update
   RC updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const RID &rid);
 
+ 
   RC readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data);
 
   // Scan returns an iterator to allow the caller to go through the results one by one. 
@@ -154,17 +166,14 @@ IMPORTANT, PLEASE READ: All methods below this comment (other than the construct
       const vector<string> &attributeNames, // a list of projected attributes
       RBFM_ScanIterator &rbfm_ScanIterator);
 
-public:
-
+    
 protected:
   RecordBasedFileManager();
   ~RecordBasedFileManager();
 
 private:
-  static RecordBasedFileManager *_rbf_manager;
-  static PagedFileManager *_pf_manager;
-
-  // Private helper methods
+  // Helper methods
+  RC insertRecordOnPage(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, void *pageData, const RID &rid);
 
   void newRecordBasedPage(void * page);
 
