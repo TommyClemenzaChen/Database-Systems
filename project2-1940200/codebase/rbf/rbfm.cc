@@ -126,12 +126,12 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
     SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(pageData);
     
     if(slotHeader.recordEntriesNumber <= rid.slotNum)
-        return RBFM_SLOT_DN_EXIST;
+        return -1;
 
     // Gets the slot directory record entry data
     SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
     if(recordEntry.offset == 0)
-        return RBFM_SLOT_DELETED;
+        return -1;
 
     // Retrieve the actual entry data
     getRecordAtOffset(pageData, recordEntry.offset, recordDescriptor, data);
@@ -212,13 +212,13 @@ RC RecordBasedFileManager::printRecord(const vector<Attribute> &recordDescriptor
     // Checking if slot id exisits
     SlotDirectoryHeader slotHeader = getSlotDirectoryHeader(pageData);
     if(slotHeader.recordEntriesNumber <= rid.slotNum)
-        return RBFM_SLOT_DN_EXIST;
+        return -1;
 
     // gets the slot record 
     SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
     
         if(recordEntry.offset == 0)
-        return RBFM_SLOT_DELETED;
+        return -1;
 
     // copying the data that will overrite the deleted record
     // Check if pointer points at the head or tail of the record
@@ -779,21 +779,19 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) {
     int rc = getNextSlot(); // now the slot is in iterRid
     if (rc) return rc;
     
-    
-    
     void *pageData = malloc(PAGE_SIZE);
     
     // read in pageData
     fileHandle.readPage(iterRid.pageNum, pageData);
-    SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, iterRid.slotNum);
+    SlotDirectoryRecordEntry recordEntry = rbfmInstance->getSlotDirectoryRecordEntryExternal(pageData, iterRid.slotNum);
     
     const void *OGdata = malloc(recordEntry.length);
     getRecordAtOffset(pageData, recordEntry.offset, RD, OGdata);
 
-    unsigned OGRecordSize = getRecordSize(RD, OGdata);
+    unsigned OGRecordSize = getRecordSizeExternal(RD, OGdata);
 
     // Read in the null indicator from iterRid
-    unsigned OGNullIndicatorSize = getNullIndicatorSize(RD.size());
+    unsigned OGNullIndicatorSize = getNullIndicatorSizeExternal(RD.size());
     char* nullIndicator = (char*)malloc(OGNullIndicatorSize);
     memcpy(nullIndicator, OGdata, OGNullIndicatorSize);
 
@@ -805,7 +803,7 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) {
     for (unsigned i = 0; i < RD.size(); i++)
     {
         // if the existing nullIndicator is NULL at this field, set new nullIndicator to 0
-        if (fieldIsNull(nullIndicator, i)) {
+        if (fieldIsNullExternal(nullIndicator, i)) {
             // set new null indicator to 0
             newNullIndicator[i] = 0;
             continue;

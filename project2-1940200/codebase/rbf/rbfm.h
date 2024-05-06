@@ -86,27 +86,22 @@ The scan iterator is NOT required to be implemented for the part 1 of the projec
 
 class RBFM_ScanIterator {
   private:
+    RecordBasedFileManager* rbfmInstance;
     RC getNextSlot();
     bool isValid(SlotDirectoryRecordEntry recordEntry);
     bool checkCondition();
 public:
-    RBFM_ScanIterator(RecordBasedFileManager* rbfm) : rbfmInstance(rbfm) {}    
+    RBFM_ScanIterator() : rbfmInstance(RecordBasedFileManager::instance()) {}
     ~RBFM_ScanIterator() {};
-    // RBFM_ScanIterator() {};
-    
-    // RBFM_ScanIterator(const CompOp compOp, const vector<Attribute>& recordDescriptor, const string& conditionAttribute, const vector<string>& attributeNames, FileHandle& fh) : comp(compOp), RD(recordDescriptor), condAttr(conditionAttribute), attrNames(attributeNames), val(nullptr), iterRid({0, 0}), numPages(0), totalSlots(0), fileHandle(fh) {}
-    // ~RBFM_ScanIterator() {};
-
     RC getNextRecord(RID &rid, void *data);
     RC close();
-
 };
 
 
 class RecordBasedFileManager
 {
     // Declare RBFM_ScanIterator as a friend class
-    friend class RBFM_ScanIterator;
+    // friend class RBFM_ScanIterator;
 public:
 static RecordBasedFileManager* instance() {
         static RecordBasedFileManager instance;
@@ -121,34 +116,14 @@ static RecordBasedFileManager* instance() {
   
   RC closeFile(FileHandle &fileHandle);
 
-  //  Format of the data passed into the function is the following:
-  //  [n byte-null-indicators for y fields] [actual value for the first field] [actual value for the second field] ...
-  //  1) For y fields, there is n-byte-null-indicators in the beginning of each record.
-  //     The value n can be calculated as: ceil(y / 8). (e.g., 5 fields => ceil(5 / 8) = 1. 12 fields => ceil(12 / 8) = 2.)
-  //     Each bit represents whether each field value is null or not.
-  //     If k-th bit from the left is set to 1, k-th field value is null. We do not include anything in the actual data part.
-  //     If k-th bit from the left is set to 0, k-th field contains non-null values.
-  //     If there are more than 8 fields, then you need to find the corresponding byte first, 
-  //     then find a corresponding bit inside that byte.
-  //  2) Actual data is a concatenation of values of the attributes.
-  //  3) For Int and Real: use 4 bytes to store the value;
-  //     For Varchar: use 4 bytes to store the length of characters, then store the actual characters.
-  //  !!! The same format is used for updateRecord(), the returned data of readRecord(), and readAttribute().
-  // For an example, refer to Q8 in the Q&A at the end of the Project 1 document.
   RC insertRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, RID &rid);
 
   RC readRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, void *data);
   
-  // This method will be mainly used for debugging/testing. 
-  // The format is as follows:
-  // field1-name: field1-value  field2-name: field2-value ... \n
-  // (e.g., age: 24  height: 6.1  salary: 9000
-  //        age: NULL  height: 7.5  salary: 7500)
+  
   RC printRecord(const vector<Attribute> &recordDescriptor, const void *data);
 
-/******************************************************************************************************************************************************************
-IMPORTANT, PLEASE READ: All methods below this comment (other than the constructor and destructor) are NOT required to be implemented for the part 1 of the project
-******************************************************************************************************************************************************************/
+
   RC deleteRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid);
 
   // Assume the RID does not change after an update
@@ -167,11 +142,9 @@ IMPORTANT, PLEASE READ: All methods below this comment (other than the construct
       RBFM_ScanIterator &rbfm_ScanIterator);
 
     
-protected:
-  RecordBasedFileManager();
-  ~RecordBasedFileManager();
 
-private:
+// private:
+
   // Helper methods
   RC insertRecordOnPage(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, void *pageData, const RID &rid);
 
@@ -191,6 +164,11 @@ private:
 
   void setRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, const void *data);
   void getRecordAtOffset(void *record, unsigned offset, const vector<Attribute> &recordDescriptor, void *data);
+
+protected:
+  RecordBasedFileManager();
+  ~RecordBasedFileManager();
+
 };
 
 #endif
