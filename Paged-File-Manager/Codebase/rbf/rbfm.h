@@ -2,11 +2,8 @@
 #define _rbfm_h_
 
 #include <string>
-#include <cstring>
 #include <vector>
 #include <climits>
-#include <cmath>
-
 
 #include "../rbf/pfm.h"
 
@@ -18,19 +15,6 @@ typedef struct
   unsigned pageNum;	// page number
   unsigned slotNum; // slot number in the page
 } RID;
-
-typedef struct 
-{
-  unsigned numSlots;
-  unsigned FSO;
-
-} SlotDirectory;
-
-typedef struct
-{
-  unsigned size;
-  unsigned RO;
-} Slot;
 
 
 // Attribute
@@ -45,7 +29,7 @@ struct Attribute {
 };
 
 // Comparison Operator (NOT needed for part 1 of the project)
-typedef enum { EQ_OP = 0, // no condition// = 
+typedef enum { EQ_OP = 0, // = 
            LT_OP,      // <
            LE_OP,      // <=
            GT_OP,      // >
@@ -109,12 +93,12 @@ public:
   //  3) For Int and Real: use 4 bytes to store the value;
   //     For Varchar: use 4 bytes to store the length of characters, then store the actual characters.
   //  !!! The same format is used for updateRecord(), the returned data of readRecord(), and readAttribute().
-  // For an example, refer to Q8 in the Q&A at the end of the Project 1 document.
+  // For example, refer to the Q8 of Project 1 wiki page.
   RC insertRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, RID &rid);
 
   RC readRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, void *data);
-
-  // This method will be mainly used for debugging/testing.
+  
+  // This method will be mainly used for debugging/testing. 
   // The format is as follows:
   // field1-name: field1-value  field2-name: field2-value ... \n
   // (e.g., age: 24  height: 6.1  salary: 9000
@@ -148,27 +132,6 @@ protected:
 
 private:
   static RecordBasedFileManager *_rbf_manager;
-  static PagedFileManager *_pf_manager;
-
-  RC createRBPage(void *pageData);
-
-  unsigned calculateRecordSize(const vector<Attribute> &recordDescriptor, const void* data);
- 
-  //Get methods
-  SlotDirectory getSlotDirectory(void *pageData);
-  Slot getSlot(const void *pageData, int slotNum);
-  unsigned getFreeSpace(void *pageData);
-  
-  //Helper Functions
-  bool isNull(unsigned char nullFieldValue, unsigned char i);
-
-
-
- 
- 
-
-
 };
 
 #endif
-
