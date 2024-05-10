@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "../rbf/rbfm.h"
 
@@ -10,6 +12,32 @@
 
 class IX_ScanIterator;
 class IXFileHandle;
+
+typedef enum {
+    INTERNAL = 0,
+    LEAF
+} Flag;
+
+typedef struct MetaDataHeader{
+    unsigned rootNum;
+} MetaDataHeader;
+
+typedef struct Pair {
+    void *key;
+    RID &rid;
+} Pair;
+
+typedef struct PageHeader {
+    Flag flag;
+    unsigned FSO;
+    unsigned numChildren;
+    //??
+} PageHeader;
+
+typedef struct LeafHeader {
+    unsigned next;
+    unsigned prev;
+} LeafHeader;
 
 class IndexManager {
 
@@ -34,6 +62,8 @@ class IndexManager {
         // Delete an entry from the given index that is indicated by the given ixfileHandle.
         RC deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
 
+        bool fileExists(const string &fileName);
+
         // Initialize and IX_ScanIterator to support a range search
         RC scan(IXFileHandle &ixfileHandle,
                 const Attribute &attribute,
@@ -52,6 +82,7 @@ class IndexManager {
 
     private:
         static IndexManager *_index_manager;
+     
 };
 
 
@@ -89,6 +120,14 @@ class IXFileHandle {
 
 	// Put the current counter values of associated PF FileHandles into variables
 	RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount);
+
+    friend class IndexManager;
+    
+    private:
+       
+    FILE *_fd;
+    void setfd(FILE *fd);
+    FILE* getfd();
 
 };
 
