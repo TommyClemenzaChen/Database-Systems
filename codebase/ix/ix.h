@@ -5,8 +5,11 @@
 #include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <iostream>
 
 #include "../rbf/rbfm.h"
+
+using namespace std;
 
 # define IX_EOF (-1)  // end of the index scan
 
@@ -18,26 +21,32 @@ typedef enum {
     LEAF
 } Flag;
 
-typedef struct MetaDataHeader{
+typedef struct MetaPageHeader{
     unsigned rootNum;
-} MetaDataHeader;
+} MetaPageHeader;
+
+typedef struct TrafficPair {
+    void *key;
+    PageNum pgNum;
+    
+} TrafficPair;
 
 typedef struct Pair {
     void *key;
-    RID &rid;
+    RID rid;
 } Pair;
 
-typedef struct PageHeader {
+typedef struct InternalPageHeader {
     Flag flag;
     unsigned FSO;
     unsigned numChildren;
     //??
-} PageHeader;
+} InternalPageHeader;
 
-typedef struct LeafHeader {
+typedef struct LeafPageHeader {
     unsigned next;
     unsigned prev;
-} LeafHeader;
+} LeafPageHeader;
 
 class IndexManager {
 
@@ -64,6 +73,15 @@ class IndexManager {
 
         bool fileExists(const string &fileName);
 
+        RC newInternalPage(void *page);
+
+        RC newMetaPage(void *page);
+
+        void setInternalPageHeader(void *page, InternalPageHeader internalPageHeader);
+
+        void setMetaPageHeader(void *page, MetaPageHeader metaPageHeader);
+
+
         // Initialize and IX_ScanIterator to support a range search
         RC scan(IXFileHandle &ixfileHandle,
                 const Attribute &attribute,
@@ -79,6 +97,7 @@ class IndexManager {
     protected:
         IndexManager();
         ~IndexManager();
+
 
     private:
         static IndexManager *_index_manager;
@@ -118,7 +137,15 @@ class IXFileHandle {
     // Destructor
     ~IXFileHandle();
 
-	// Put the current counter values of associated PF FileHandles into variables
+    RC readPage(PageNum pageNum, void *data);
+
+    RC writePage(PageNum pageNum, const void *data);
+
+    RC appendPage(const void *data);
+
+    unsigned getNumberOfPages();
+
+    // Put the current counter values of associated PF FileHandles into variables
 	RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount);
 
     friend class IndexManager;
