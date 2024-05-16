@@ -27,11 +27,11 @@ typedef struct MetaPageHeader{
 
 typedef struct TrafficPair {
     void *key;
-    PageNum pgNum;
+    PageNum pageNum;
     
 } TrafficPair;
 
-typedef struct Pair {
+typedef struct LeafPair {
     void *key;
     RID rid;
 } Pair;
@@ -39,13 +39,16 @@ typedef struct Pair {
 typedef struct InternalPageHeader {
     Flag flag;
     unsigned FSO;
-    unsigned numChildren;
-    //??
+    unsigned numEntries;
 } InternalPageHeader;
 
 typedef struct LeafPageHeader {
+    Flag flag;
+    unsigned FSO;
     unsigned next;
     unsigned prev;
+    unsigned numEntries;
+
 } LeafPageHeader;
 
 class IndexManager {
@@ -73,13 +76,27 @@ class IndexManager {
 
         bool fileExists(const string &fileName);
 
+        unsigned getKeyStringLength(void *data);
+
         RC newInternalPage(void *page);
 
         RC newMetaPage(void *page);
 
+        RC newLeafPage(void *page);
+
         void setInternalPageHeader(void *page, InternalPageHeader internalPageHeader);
 
         void setMetaPageHeader(void *page, MetaPageHeader metaPageHeader);
+
+        void setLeafPageHeader(void *page, LeafPageHeader LeafPageHeader);
+
+        InternalPageHeader getInternalPageHeader(void *page);
+
+        MetaPageHeader getMetaPageHeader(void *page);
+
+        LeafPageHeader getLeafPageHeader(void *page);
+
+        RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr);
 
 
         // Initialize and IX_ScanIterator to support a range search

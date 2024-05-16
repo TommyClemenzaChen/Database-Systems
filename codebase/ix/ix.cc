@@ -20,13 +20,24 @@ IndexManager::~IndexManager()
 }
 
 //Helper Functions
+bool IndexManager::fileExists(const string &fileName) {
+    struct stat sb;
+    return stat(fileName.c_str(), &sb) == 0;
+}
+
+unsigned IndexManager::getKeyStringLength(void *data) {
+    unsigned stringLength;
+    memcpy(&stringLength, data, sizeof(int));
+    return stringLength;
+}
+
 RC IndexManager::newInternalPage(void *page) {
     memset(page, 0, PAGE_SIZE);
     //write page header
     InternalPageHeader internalPageHeader;
     internalPageHeader.flag = INTERNAL;
     internalPageHeader.FSO = PAGE_SIZE;
-    internalPageHeader.numChildren = 1; //??
+    internalPageHeader.numEntries = 1; //??
     setInternalPageHeader(page, internalPageHeader);
 }
 
@@ -36,20 +47,129 @@ RC IndexManager::newMetaPage(void *page) {
     MetaPageHeader metaPageHeader;
     metaPageHeader.rootNum = 1;
     setMetaPageHeader(page, metaPageHeader);
-    
+}
+
+RC IndexManager::newLeafPage(void *page) {
+    memset(page, 0, PAGE_SIZE);
+    //write leaf page header
+    LeafPageHeader leafPageHeader;
+    setLeafPageHeader(page, leafPageHeader);
 }
 
 void IndexManager::setInternalPageHeader(void *page, InternalPageHeader internalPageHeader) {
     memcpy(page, &internalPageHeader, sizeof(InternalPageHeader));
 }
 
+InternalPageHeader IndexManager::getInternalPageHeader(void *page) {
+    InternalPageHeader internalPageHeader;
+    memcpy(&internalPageHeader, page, sizeof(InternalPageHeader));
+    return internalPageHeader;
+}
+
 void IndexManager::setMetaPageHeader(void *page, MetaPageHeader metaPageHeader) {
     memcpy(page, &metaPageHeader, sizeof(MetaPageHeader));
 }
 
-bool IndexManager::fileExists(const string &fileName) {
-    struct stat sb;
-    return stat(fileName.c_str(), &sb) == 0;
+MetaPageHeader IndexManager::getMetaPageHeader(void *page) {
+    MetaPageHeader metaPageHeader;
+    memcpy(&metaPageHeader, page, sizeof(MetaPageHeader));
+    return metaPageHeader;
+}
+
+void IndexManager::setLeafPageHeader(void *page, LeafPageHeader leafPageHeader) {
+    memcpy(page, &leafPageHeader, sizeof(LeafPageHeader));
+}
+
+LeafPageHeader IndexManager::getLeafPageHeader(void *page) {
+    LeafPageHeader leafPageHeader;
+    memcpy(&leafPageHeader, page, sizeof(LeafPageHeader));
+    return leafPageHeader;
+}
+
+
+RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr) {
+    LeafPageHeader currLeafPageHeader = getLeafPageHeader(currLeafData); //gets leaf header of current leaf
+    
+    unsigned currNumEntries;
+    unsigned offset = sizeof(LeafPageHeader);
+    while (true) {
+        if (offset >= PAGE_SIZE / 2)  //stop reading after 2048 bytes
+            break;
+        switch (attr.type) {
+            case TypeInt:
+                offset += sizeof(int) + sizeof(RID);
+                break;
+
+            case TypeReal:
+                offset += sizeof(float) + sizeof(RID);
+                break;
+            
+            case TypeVarChar:
+                int stringLength;
+                memcpy(&stringLength, (char*)currLeafData + offset, sizeof(int));
+                offset += sizeof(int) + stringLength + sizeof(RID);
+        }
+        currNumEntries += 1;
+    }
+
+    cout << offset << endl;
+
+    void *newLeafData = malloc(PAGE_SIZE);
+    LeafPageHeader newLeafPageHeader;
+    newLeafPageHeader.flag = LEAF;
+    newLeafPageHeader.numEntries = currNumEntries;
+    newLeafPageHeader.next = NULL;
+    newLeafPageHeader.prev = currPageNum;
+    newLeafPageHeader.FSO = offset;  //offset should be at middle split
+
+    setLeafPageHeader(newLeafData, newLeafPageHeader);
+
+    ixFileHandle.appendPage(newLeafData);
+
+    return SUCCESS;
+
+}
+
+//returns true when key1 < key2, false ow
+bool compareKeys(Attribute attr, void* key1, void* key2) {
+    int valueInt1;
+    int valueInt2;
+
+    float valueFloat1;
+    float valueFloat2;
+
+    int stringLength1;
+    int stringLength2;
+    string valueString1;
+    string valueString2;
+
+    switch (attr.type) {
+        case TypeInt:
+            
+            memcpy(&valueInt1, key1, sizeof(int));
+            
+            memcpy(&valueInt2, key2, sizeof(int));
+
+            return valueInt1 < valueInt2;
+
+        case TypeReal:
+            memcpy(&valueFloat1, key1, sizeof(float));
+            
+            memcpy(&valueFloat2, key2, sizeof(float));
+
+            return valueFloat1 < valueFloat2;
+        case TypeVarChar:
+            
+            memcpy(&stringLength1, key1, sizeof(int));
+            
+            memcpy(&valueString1, (char*)key1 + sizeof(int), stringLength1);
+
+            memcpy(&stringLength2, key2, sizeof(int));
+            
+            memcpy(&valueString2, (char*)key2 + sizeof(int), stringLength2);
+            
+            return valueString1 < valueString2;
+    }
 }
 
 RC IndexManager::createFile(const string &fileName)
@@ -148,23 +268,12 @@ RC IndexManager::closeFile(IXFileHandle &ixfileHandle)
 
 RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid)
 {
-    //should follow B+ tree insertion algorithm
-    if (ixfileHandle.getfd() == NULL) {
-        return 1;
-    }
-
-    for 
-
-    
-
-
-
     return -1;
 }
 
 RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid)
 {
-    
+
     return -1;
 }
 
