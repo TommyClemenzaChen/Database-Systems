@@ -130,6 +130,8 @@ class IndexManager {
         // calculate size of a key, given the attribute
         int sizeOfKey(Attribute attr, void* key);
 
+        RC splitInternalPage(void * currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr);
+
     protected:
         IndexManager();
         ~IndexManager();

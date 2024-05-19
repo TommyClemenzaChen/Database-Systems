@@ -128,12 +128,13 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
 
     LeafPageHeader currLeafPageHeader = getLeafPageHeader(currLeafData); 
     
+    RID rid;
     unsigned currNumEntries;
     unsigned offset = sizeof(LeafPageHeader);
     while (true) {
         if (offset >= PAGE_SIZE / 2)  //stop reading after 2048 bytes
             break;
-        offset += sizeOfAttr(attr, (char*)currLeafData+offset, rid); // when it reads through, does it
+        offset += sizeOfAttr(attr, (char*)currLeafData+offset, rid); 
         currNumEntries += 1;
     }
 
@@ -171,13 +172,14 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
 
 RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr) {
     InternalPageHeader currInternalPageHeader = getInternalPageHeader(currInternalData); 
-    
+
+    PageNum pagenum;    
     unsigned currNumEntries;
     unsigned offset = sizeof(InternalPageHeader);
     while (true) {
         if (offset >= PAGE_SIZE / 2)  //stop reading after 2048 bytes
             break;
-        offset += sizeOfAttr(attr, (char*)currInternalData+offset, rid); // when it reads through, does it
+        offset += sizeOfKey(attr, (char*)currInternalData+offset) + sizeof(PageNum);
         currNumEntries += 1;
     }
 
@@ -186,10 +188,7 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     newInternalPageHeader.flag = INTERNAL;
     newInternalPageHeader.numEntries = currInternalPageHeader.numEntries - currNumEntries // get the remaining number of entries on the page
     newInternalPageHeader.FSO = PAGE_SIZE - offset;  // this may not be accurate, but if the page is full this should be true
-    // newInternalPageHeader.next = NULL;
-    // newInternalPageHeader.prev = currPageNum; 
     
-
     /* ------------------------------------
         What order should these 3 lines be in? */
     setLeafPageHeader(newInternalData, newInternalPageHeader);
@@ -204,8 +203,6 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     // Update the current internal page to remove everything that was split from the page
     currInternalPageHeader.numEntries = currNumEntries; 
     currInternalPageHeader.FSO = offset; 
-    // currInternalPageHeader.next = ixFileHandle.getNumberOfPages(); // the 
-    // don't set currInternalPageHeader.prev because it may have been previously set
 
     // TODO: remove everything after offset from currPageData
     memset((char*)currInternalData + offset, 0, PAGE_SIZE - offset);    
