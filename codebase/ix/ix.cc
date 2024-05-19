@@ -141,7 +141,7 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
     void *newLeafData = malloc(PAGE_SIZE);
     LeafPageHeader newLeafPageHeader;
     newLeafPageHeader.flag = LEAF;
-    newLeafPageHeader.numEntries = currLeafPageHeader.numEntries - currNumEntries // get the remaining number of entries on the page
+    newLeafPageHeader.numEntries = currLeafPageHeader.numEntries - currNumEntries; // get the remaining number of entries on the page
     newLeafPageHeader.FSO = PAGE_SIZE - offset;  // this may not be accurate, but if the page is full this should be true
     newLeafPageHeader.next = 0; // set to 0 bc you cant set an unsigned to NULL
     newLeafPageHeader.prev = currPageNum; 
@@ -186,12 +186,12 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     void *newInternalData = malloc(PAGE_SIZE);
     InternalPageHeader newInternalPageHeader;
     newInternalPageHeader.flag = INTERNAL;
-    newInternalPageHeader.numEntries = currInternalPageHeader.numEntries - currNumEntries // get the remaining number of entries on the page
+    newInternalPageHeader.numEntries = currInternalPageHeader.numEntries - currNumEntries; // get the remaining number of entries on the page
     newInternalPageHeader.FSO = PAGE_SIZE - offset;  // this may not be accurate, but if the page is full this should be true
     
     /* ------------------------------------
         What order should these 3 lines be in? */
-    setLeafPageHeader(newInternalData, newInternalPageHeader);
+    setInternalPageHeader(newInternalData, newInternalPageHeader);
 
     ixFileHandle.appendPage(newInternalData);
 

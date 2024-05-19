@@ -122,7 +122,7 @@ class IndexManager {
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
         
         // check if there's room to insert on an internal page
-        bool cantInsertInternal(Attribute attr, void *key, RID rid);
+        bool cantInsertInternal(InternalPageHeader internalPageHeader, Attribute attr, void *key, RID rid);
 
         // calculate size of a key, rid pair, given the attribute
         int sizeOfAttr(Attribute attr, void* key, RID &rid);
