@@ -39,6 +39,7 @@ RC IndexManager::newInternalPage(void *page) {
     internalPageHeader.FSO = PAGE_SIZE;
     internalPageHeader.numEntries = 1; //??
     setInternalPageHeader(page, internalPageHeader);
+    return SUCCESS;
 }
 
 RC IndexManager::newMetaPage(void *page) {
@@ -47,6 +48,7 @@ RC IndexManager::newMetaPage(void *page) {
     MetaPageHeader metaPageHeader;
     metaPageHeader.rootNum = 1;
     setMetaPageHeader(page, metaPageHeader);
+    return SUCCESS;
 }
 
 RC IndexManager::newLeafPage(void *page) {
@@ -54,6 +56,7 @@ RC IndexManager::newLeafPage(void *page) {
     //write leaf page header
     LeafPageHeader leafPageHeader;
     setLeafPageHeader(page, leafPageHeader);
+    return SUCCESS;
 }
 
 void IndexManager::setInternalPageHeader(void *page, InternalPageHeader internalPageHeader) {
@@ -122,51 +125,11 @@ unsigned getKeyLength(void *key, Attribute attr) {
 }
 
 RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr) {
-    LeafPageHeader currLeafPageHeader = getLeafPageHeader(currLeafData); //gets leaf header of current leaf
+
+    LeafPageHeader currLeafPageHeader = getLeafPageHeader(currLeafData); 
     
     unsigned currNumEntries;
     unsigned offset = sizeof(LeafPageHeader);
-    while (true) {
-        if (offset >= PAGE_SIZE / 2)  //stop reading after 2048 bytes
-            break;
-        switch (attr.type) {
-            case TypeInt:
-                offset += sizeof(int) + sizeof(RID);
-                break;
-
-            case TypeReal:
-                offset += sizeof(float) + sizeof(RID);
-                break;
-            
-            case TypeVarChar:
-                int stringLength;
-                memcpy(&stringLength, (char*)currLeafData + offset, sizeof(int));
-                offset += sizeof(int) + stringLength + sizeof(RID);
-        }
-        currNumEntries += 1;
-    }
-
-    void *newLeafData = malloc(PAGE_SIZE);
-    LeafPageHeader newLeafPageHeader;
-    newLeafPageHeader.flag = LEAF;
-    newLeafPageHeader.numEntries = currNumEntries;
-    newLeafPageHeader.next = NULL;
-    newLeafPageHeader.prev = currPageNum;
-    newLeafPageHeader.FSO = offset;  //offset should be at middle split
-
-    setLeafPageHeader(newLeafData, newLeafPageHeader);
-
-    ixFileHandle.appendPage(newLeafData);
-
-    return SUCCESS;
-
-}
-
-RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr) {
-    InternalPageHeader currInternalPageHeader = getLeafPageHeader(currInternalData); 
-    
-    unsigned currNumEntries;
-    unsigned offset = sizeof(InternalPageHeader);
     while (true) {
         if (offset >= PAGE_SIZE / 2)  //stop reading after 2048 bytes
             break;
@@ -174,13 +137,58 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
         currNumEntries += 1;
     }
 
+    void *newLeafData = malloc(PAGE_SIZE);
+    LeafPageHeader newLeafPageHeader;
+    newLeafPageHeader.flag = LEAF;
+    newLeafPageHeader.numEntries = currLeafPageHeader.numEntries - currNumEntries // get the remaining number of entries on the page
+    newLeafPageHeader.FSO = PAGE_SIZE - offset;  // this may not be accurate, but if the page is full this should be true
+    newLeafPageHeader.next = 0; // set to 0 bc you cant set an unsigned to NULL
+    newLeafPageHeader.prev = currPageNum; 
+    
+
+    /* ------------------------------------
+        What order should these 3 lines be in? */
+    setLeafPageHeader(newLeafData, newLeafPageHeader);
+
+    ixFileHandle.appendPage(newLeafData);
+
+    // Split all the data that comes after offset into newInternalData
+    memcpy(newLeafData, (char*)currLeafData + offset, PAGE_SIZE - offset);
+
+    /* ------------------------------------*/
+
+    // Update the current leaf page to remove everything that was split from the page
+    currLeafPageHeader.numEntries = currNumEntries; 
+    currLeafPageHeader.FSO = offset; 
+    currLeafPageHeader.next = ixFileHandle.getNumberOfPages(); 
+    // don't set currLeafPageHeader.prev because it may have been previously set
+
+    // TODO: remove everything after offset from currLeafData
+    memset((char*)currLeafData + offset, 0, PAGE_SIZE - offset);    
+
+    return SUCCESS;
+}
+
+RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr) {
+    InternalPageHeader currInternalPageHeader = getInternalPageHeader(currInternalData); 
+    
+    unsigned currNumEntries;
+    unsigned offset = sizeof(InternalPageHeader);
+    while (true) {
+        if (offset >= PAGE_SIZE / 2)  //stop reading after 2048 bytes
+            break;
+        offset += sizeOfAttr(attr, (char*)currInternalData+offset, rid); // when it reads through, does it
+        currNumEntries += 1;
+    }
+
     void *newInternalData = malloc(PAGE_SIZE);
     InternalPageHeader newInternalPageHeader;
     newInternalPageHeader.flag = INTERNAL;
     newInternalPageHeader.numEntries = currInternalPageHeader.numEntries - currNumEntries // get the remaining number of entries on the page
-    newInternalPageHeader.next = NULL;
-    newInternalPageHeader.prev = currPageNum; 
     newInternalPageHeader.FSO = PAGE_SIZE - offset;  // this may not be accurate, but if the page is full this should be true
+    // newInternalPageHeader.next = NULL;
+    // newInternalPageHeader.prev = currPageNum; 
+    
 
     /* ------------------------------------
         What order should these 3 lines be in? */
@@ -195,9 +203,9 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
 
     // Update the current internal page to remove everything that was split from the page
     currInternalPageHeader.numEntries = currNumEntries; 
-    currInternalPageHeader.next = ixFileHandle.getNumberOfPages(); // the 
-    // don't set currInternalPageHeader.prev because it may have been previously set
     currInternalPageHeader.FSO = offset; 
+    // currInternalPageHeader.next = ixFileHandle.getNumberOfPages(); // the 
+    // don't set currInternalPageHeader.prev because it may have been previously set
 
     // TODO: remove everything after offset from currPageData
     memset((char*)currInternalData + offset, 0, PAGE_SIZE - offset);    
@@ -206,9 +214,9 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
 }
 
 // helper functions for insert
-bool IndexManager::cantInsertInternal(Attribute attr, void *key, RID rid) {
+bool IndexManager::cantInsertInternal(InternalPageHeader internalPageHeader, Attribute attr, void *key, RID rid) {
     int newEntrySize = sizeOfAttr(attr, key, rid);
-    return FSO - sizeof(InternalPageHeader) < newEntrySize;
+    return internalPageHeader.FSO - sizeof(InternalPageHeader) < newEntrySize;
 }
 
 int IndexManager::sizeOfAttr(Attribute attr, void* key, RID &rid) {
@@ -293,7 +301,6 @@ bool IndexManager::compareRIDS(RID &rid1, RID &rid2) {
     if (rid1.pageNum == rid2.pageNum && rid1.slotNum == rid2.slotNum) {
         return true;
     }
-
     return false;
 }
 
