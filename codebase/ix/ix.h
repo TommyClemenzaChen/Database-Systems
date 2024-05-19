@@ -126,7 +126,9 @@ class IndexManager {
 
         // calculate size of a key, rid pair, given the attribute
         int sizeOfAttr(Attribute attr, void* key, RID &rid);
-
+        
+        // calculate size of a key, given the attribute
+        int sizeOfKey(Attribute attr, void* key);
 
     protected:
         IndexManager();

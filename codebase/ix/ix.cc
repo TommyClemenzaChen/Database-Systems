@@ -163,34 +163,44 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
 }
 
 RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr) {
-    LeafPageHeader currLeafPageHeader = getLeafPageHeader(currLeafData); //gets leaf header of current leaf
+    InternalPageHeader currInternalPageHeader = getLeafPageHeader(currInternalData); 
     
     unsigned currNumEntries;
-    unsigned offset = sizeof(LeafPageHeader);
+    unsigned offset = sizeof(InternalPageHeader);
     while (true) {
         if (offset >= PAGE_SIZE / 2)  //stop reading after 2048 bytes
             break;
-        offset += sizeOfAttr(Attribute attr, void* key, RID &rid)
+        offset += sizeOfAttr(attr, (char*)currLeafData+offset, rid); // when it reads through, does it
         currNumEntries += 1;
     }
 
     void *newInternalData = malloc(PAGE_SIZE);
     InternalPageHeader newInternalPageHeader;
     newInternalPageHeader.flag = INTERNAL;
-    newInternalPageHeader.numEntries = currNumEntries; // 
+    newInternalPageHeader.numEntries = currInternalPageHeader.numEntries - currNumEntries // get the remaining number of entries on the page
     newInternalPageHeader.next = NULL;
-    newInternalPageHeader.prev = currPageNum;
-    newInternalPageHeader.FSO = offset;  //offset should be at middle split
+    newInternalPageHeader.prev = currPageNum; 
+    newInternalPageHeader.FSO = PAGE_SIZE - offset;  // this may not be accurate, but if the page is full this should be true
 
-    // Add all the data that's after the middle of the OG page into the new page
+    /* ------------------------------------
+        What order should these 3 lines be in? */
+    setLeafPageHeader(newInternalData, newInternalPageHeader);
 
-    // Update the OG page to remove everything that's after
+    ixFileHandle.appendPage(newInternalData);
 
-    // UPDATE THE OG PAGE'S NEXT AND PREV, AND REALLOCATE DATA IN THERE AND CHANGE ITS FSO
+    // Split all the data that comes after offset into newInternalData
+    memcpy(newInternalData, (char*)currInternalData + offset, PAGE_SIZE - offset);
 
-    setLeafPageHeader(newLeafData, newLeafPageHeader);
+    /* ------------------------------------*/
 
-    ixFileHandle.appendPage(newLeafData);
+    // Update the current internal page to remove everything that was split from the page
+    currInternalPageHeader.numEntries = currNumEntries; 
+    currInternalPageHeader.next = ixFileHandle.getNumberOfPages(); // the 
+    // don't set currInternalPageHeader.prev because it may have been previously set
+    currInternalPageHeader.FSO = offset; 
+
+    // TODO: remove everything after offset from currPageData
+    memset((char*)currInternalData + offset, 0, PAGE_SIZE - offset);    
 
     return SUCCESS;
 }
