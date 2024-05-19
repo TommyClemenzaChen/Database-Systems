@@ -1,0 +1,29 @@
+1. Basic information
+Team number (e.g., 01) : 
+#1 Student ID : 
+#1 Student Name : 
+#2 Student ID : 
+#2 Student Name : 
+
+2. Meta-data page in an index file
+- Show your meta-data page of an index design, if you have any. 
+
+
+3. Index Entry Format
+- Show your design for index entries (data structure). 
+
+
+4. Page Format
+- Show your internal-page (non-leaf node) design.
+
+- Show your leaf-page (leaf node) design.
+
+
+5. Implementation Detail
+
+- Provide  implementation details, including how you handle insertions (including splits), and how you handle deletion using lazy deletion.
+
+
+6. Other (optional)
+- Freely use this section to tell us about things that are related to Project3, but are not described in other sections of this report (optional).
+
