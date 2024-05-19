@@ -177,10 +177,14 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     void *newInternalData = malloc(PAGE_SIZE);
     InternalPageHeader newInternalPageHeader;
     newInternalPageHeader.flag = INTERNAL;
-    newInternalPageHeader.numEntries = currNumEntries;
+    newInternalPageHeader.numEntries = currNumEntries; // 
     newInternalPageHeader.next = NULL;
     newInternalPageHeader.prev = currPageNum;
     newInternalPageHeader.FSO = offset;  //offset should be at middle split
+
+    // Add all the data that's after the middle of the OG page into the new page
+
+    // Update the OG page to remove everything that's after
 
     // UPDATE THE OG PAGE'S NEXT AND PREV, AND REALLOCATE DATA IN THERE AND CHANGE ITS FSO
 
@@ -192,19 +196,23 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
 }
 
 // helper functions for insert
-bool cantInsertInternal(Attribute attr, void *key, RID rid) {
+bool IndexManager::cantInsertInternal(Attribute attr, void *key, RID rid) {
     int newEntrySize = sizeOfAttr(attr, key, rid);
     return FSO - sizeof(InternalPageHeader) < newEntrySize;
 }
 
-int sizeOfAttr(Attribute attr, void* key, RID &rid) {
+int IndexManager::sizeOfAttr(Attribute attr, void* key, RID &rid) {
+    return sizeOfKey(attr, key) + sizeof(rid);
+}
+
+int IndexManager::sizeOfKey(Attribute attr, void* key) {
     int varCharSize = 0;
     if (attr.type == TypeReal || attr.type == TypeInt)
-        return 4 + sizeof(rid);
+        return 4;
     // read in the first 4 bytes of the key
     int stringLength;
     memcpy(&stringLength, (char*)key, sizeof(int)); // get the length of the string
-    return 4 + stringLength + sizeof(rid);
+    return 4 + stringLength;
 }
 
 int IndexManager::compareKeys(Attribute attr, void* key1, void* key2) {
