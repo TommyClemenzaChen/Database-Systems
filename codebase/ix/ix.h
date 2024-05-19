@@ -67,7 +67,9 @@ class IndexManager {
         // Close an ixfileHandle for an index.
         RC closeFile(IXFileHandle &ixfileHandle);
 
-        RC insert(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
+        RC insertInternal(InternalPageHeader internalPageHeader, IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
+
+        RC insertLeaf(LeafPageHeader leafPageHeader, IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
 
         // Insert an entry into the given index that is indicated by the given ixfileHandle.
         RC insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
