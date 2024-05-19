@@ -67,7 +67,11 @@ class IndexManager {
         // Close an ixfileHandle for an index.
         RC closeFile(IXFileHandle &ixfileHandle);
 
-        RC insert(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
+        RC insertInternal(InternalPageHeader internalPageHeader, IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
+
+        RC insertLeaf(LeafPageHeader leafPageHeader, IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
+
+        RC insert(IXFileHandle &ixfileHandle, const Attribute &attr, const void *key, const RID &rid, unsigned rootPageNum, TrafficPair &trafficPair);
 
         // Insert an entry into the given index that is indicated by the given ixfileHandle.
         RC insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
@@ -79,7 +83,7 @@ class IndexManager {
 
         unsigned getKeyStringLength(void *data);
 
-        int compareKeys(Attribute attr, void *key1, void *key2);
+        int compareKeys(Attribute attr, const void *key1, const void *key2);
 
         bool compareRIDS(RID &rid1, RID &rid2);
 
@@ -103,9 +107,15 @@ class IndexManager {
 
         LeafPageHeader getLeafPageHeader(void *page);
 
+        unsigned getRootPageNum(IXFileHandle ixfileHandle);
+
+        unsigned getChildPageNum(const void *key, void *pageData, Attribute attr);
+
         bool isLeafPage(void *page);
 
         bool isInternalPage(void *page);
+
+        RC splitInternalPage(void *currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr);
 
         RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr);
 
