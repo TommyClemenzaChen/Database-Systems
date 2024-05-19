@@ -86,6 +86,40 @@ LeafPageHeader IndexManager::getLeafPageHeader(void *page) {
     return leafPageHeader;
 }
 
+bool IndexManager::isLeafPage(void *page) {
+    LeafPageHeader leafPageHeader;
+    memcpy(&leafPageHeader, page, sizeof(LeafPageHeader));
+    
+    return leafPageHeader.flag == LEAF;
+}
+
+bool IndexManager::isInternalPage(void *page) {
+    InternalPageHeader internalPageHeader;
+    memcpy(&internalPageHeader, page, sizeof(InternalPageHeader));
+    return internalPageHeader.flag == INTERNAL;
+}
+
+unsigned getKeyLength(void *key, Attribute attr) {
+    unsigned keyLength = 0;
+    switch (attr.type) {
+        
+        case TypeInt:
+            keyLength = sizeof(int);
+            break;
+        
+        case TypeReal:
+            keyLength = sizeof(float);
+            break;
+        
+        case TypeVarChar:
+            int stringLength;
+            memcpy(&stringLength, key, sizeof(int));
+            keyLength = sizeof(int) + stringLength;
+            break;
+    }
+
+    return keyLength;
+}
 
 RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr) {
     LeafPageHeader currLeafPageHeader = getLeafPageHeader(currLeafData); //gets leaf header of current leaf
@@ -112,8 +146,6 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
         currNumEntries += 1;
     }
 
-    cout << offset << endl;
-
     void *newLeafData = malloc(PAGE_SIZE);
     LeafPageHeader newLeafPageHeader;
     newLeafPageHeader.flag = LEAF;
@@ -130,8 +162,7 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
 
 }
 
-//returns true when key1 < key2, false ow
-bool compareKeys(Attribute attr, void* key1, void* key2) {
+int IndexManager::compareKeys(Attribute attr, void* key1, void* key2) {
     int valueInt1;
     int valueInt2;
 
@@ -140,8 +171,9 @@ bool compareKeys(Attribute attr, void* key1, void* key2) {
 
     int stringLength1;
     int stringLength2;
-    string valueString1;
-    string valueString2;
+    char* str1;
+    char* str2;
+
 
     switch (attr.type) {
         case TypeInt:
@@ -149,28 +181,80 @@ bool compareKeys(Attribute attr, void* key1, void* key2) {
             memcpy(&valueInt1, key1, sizeof(int));
             
             memcpy(&valueInt2, key2, sizeof(int));
-
-            return valueInt1 < valueInt2;
+            
+            if (valueInt1 < valueInt2)
+                return -1;
+            else if (valueInt1 > valueInt2)
+                return 1;
+            else
+                return 0;
 
         case TypeReal:
             memcpy(&valueFloat1, key1, sizeof(float));
             
             memcpy(&valueFloat2, key2, sizeof(float));
 
-            return valueFloat1 < valueFloat2;
+            if (valueFloat1 < valueFloat2)
+                return -1;
+            else if (valueFloat1 > valueFloat2)
+                return 1;
+            else
+                return 0;
+        
         case TypeVarChar:
             
             memcpy(&stringLength1, key1, sizeof(int));
-            
-            memcpy(&valueString1, (char*)key1 + sizeof(int), stringLength1);
+            str1 = (char*)malloc(stringLength1 + 1);
+            memcpy(str1, (char*)key1 + sizeof(int), stringLength1);
+
 
             memcpy(&stringLength2, key2, sizeof(int));
+            str2 = (char*)malloc(stringLength2 + 1);
+            memcpy(str2, (char*)key2 + sizeof(int), stringLength2);
+        
+            int rc = strcmp(str1, str2);
+            free(str1);
+            free(str2);
+
+            if (rc > 0)
+                return 1;
+            else if (rc < 0)
+                return -1;
+            else
+                return 0;
             
-            memcpy(&valueString2, (char*)key2 + sizeof(int), stringLength2);
-            
-            return valueString1 < valueString2;
     }
 }
+
+bool IndexManager::compareRIDS(RID &rid1, RID &rid2) {
+    if (rid1.pageNum == rid2.pageNum && rid1.slotNum == rid2.slotNum) {
+        return true;
+    }
+
+    return false;
+}
+
+bool IndexManager::recordExists(void *pageData, void *key, RID &rid, Attribute &attr) {
+    LeafPageHeader leafHeader = getLeafPageHeader(pageData);
+
+    RID tempRID;
+	unsigned offset = sizeof(LeafPageHeader);
+    unsigned tempKeyLength;
+    for (int i = 0; i < leafHeader.numEntries; i++) {
+		tempKeyLength = getKeyLength((char*) pageData + offset, attr);
+		memcpy(&tempRID, (char*) pageData + offset + tempKeyLength, sizeof(RID));
+
+		// Compares the current read key and RID with the ones given in input.
+		// If we have found the same <key, reid> pair, return true.
+		if(compareKeys(attr, key, (char*) pageData + offset) == 0 && compareRIDS(tempRID, rid));
+			return true;
+
+		offset += tempKeyLength + sizeof(RID);
+	}
+
+    return false;
+}
+
 
 RC IndexManager::createFile(const string &fileName)
 {
@@ -266,8 +350,19 @@ RC IndexManager::closeFile(IXFileHandle &ixfileHandle)
     return SUCCESS;
 }
 
+RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid) {
+    //Internal Page
+    
+
+    //Leaf Page
+    return -1;
+}
+
 RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid)
 {
+    TrafficPair trafficPair;
+    trafficPair.key = NULL;
+
     return -1;
 }
 

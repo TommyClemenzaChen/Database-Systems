@@ -18,7 +18,7 @@ class IXFileHandle;
 
 typedef enum {
     INTERNAL = 0,
-    LEAF
+    LEAF = 1
 } Flag;
 
 typedef struct MetaPageHeader{
@@ -28,7 +28,6 @@ typedef struct MetaPageHeader{
 typedef struct TrafficPair {
     void *key;
     PageNum pageNum;
-    
 } TrafficPair;
 
 typedef struct LeafPair {
@@ -68,6 +67,8 @@ class IndexManager {
         // Close an ixfileHandle for an index.
         RC closeFile(IXFileHandle &ixfileHandle);
 
+        RC insert(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
+
         // Insert an entry into the given index that is indicated by the given ixfileHandle.
         RC insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
 
@@ -77,6 +78,12 @@ class IndexManager {
         bool fileExists(const string &fileName);
 
         unsigned getKeyStringLength(void *data);
+
+        int compareKeys(Attribute attr, void *key1, void *key2);
+
+        bool compareRIDS(RID &rid1, RID &rid2);
+
+        bool recordExists(void *pageData, void *key, RID &rid, Attribute &attr);
 
         RC newInternalPage(void *page);
 
@@ -96,8 +103,11 @@ class IndexManager {
 
         LeafPageHeader getLeafPageHeader(void *page);
 
-        RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr);
+        bool isLeafPage(void *page);
 
+        bool isInternalPage(void *page);
+
+        RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr);
 
         // Initialize and IX_ScanIterator to support a range search
         RC scan(IXFileHandle &ixfileHandle,

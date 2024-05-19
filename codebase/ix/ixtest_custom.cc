@@ -47,6 +47,28 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
     return SUCCESS;
 }
 
+void testCompareKeys(IndexManager *indexManager) {
+     //test compareKeys
+    Attribute attr = {"empName", TypeVarChar, 50};
+    int len1 = 5;
+    int len2 = 4;
+    void* key1 = malloc(sizeof(int) + len1);
+    void* key2 = malloc(sizeof(int) + len2);
+
+    // Copy the length and the string data into key1
+    memcpy((char*)key1, &len1, sizeof(int));
+    memcpy((char*)key1 + sizeof(int), "hell", len1);
+
+    // Copy the length and the string data into key2
+    memcpy((char*)key2, &len2, sizeof(int));
+    memcpy((char*)key2 + sizeof(int), "hell", len2);
+    
+    int rc = indexManager->compareKeys(attr, key1, key2);
+    
+    cout << "Compare Keys #1: " << rc << endl;
+
+}
+
 
 int main () {
     indexManager = IndexManager::instance();
@@ -56,6 +78,8 @@ int main () {
     attrAge.length = 4;
     attrAge.name = "age";
     attrAge.type = TypeInt;
+
+    testCompareKeys(indexManager);
 
     //populate the files
     
