@@ -162,6 +162,51 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
 
 }
 
+RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr) {
+    LeafPageHeader currLeafPageHeader = getLeafPageHeader(currLeafData); //gets leaf header of current leaf
+    
+    unsigned currNumEntries;
+    unsigned offset = sizeof(LeafPageHeader);
+    while (true) {
+        if (offset >= PAGE_SIZE / 2)  //stop reading after 2048 bytes
+            break;
+        offset += sizeOfAttr(Attribute attr, void* key, RID &rid)
+        currNumEntries += 1;
+    }
+
+    void *newInternalData = malloc(PAGE_SIZE);
+    InternalPageHeader newInternalPageHeader;
+    newInternalPageHeader.flag = INTERNAL;
+    newInternalPageHeader.numEntries = currNumEntries;
+    newInternalPageHeader.next = NULL;
+    newInternalPageHeader.prev = currPageNum;
+    newInternalPageHeader.FSO = offset;  //offset should be at middle split
+
+    // UPDATE THE OG PAGE'S NEXT AND PREV, AND REALLOCATE DATA IN THERE AND CHANGE ITS FSO
+
+    setLeafPageHeader(newLeafData, newLeafPageHeader);
+
+    ixFileHandle.appendPage(newLeafData);
+
+    return SUCCESS;
+}
+
+// helper functions for insert
+bool cantInsertInternal(Attribute attr, void *key, RID rid) {
+    int newEntrySize = sizeOfAttr(attr, key, rid);
+    return FSO - sizeof(InternalPageHeader) < newEntrySize;
+}
+
+int sizeOfAttr(Attribute attr, void* key, RID &rid) {
+    int varCharSize = 0;
+    if (attr.type == TypeReal || attr.type == TypeInt)
+        return 4 + sizeof(rid);
+    // read in the first 4 bytes of the key
+    int stringLength;
+    memcpy(&stringLength, (char*)key, sizeof(int)); // get the length of the string
+    return 4 + stringLength + sizeof(rid);
+}
+
 int IndexManager::compareKeys(Attribute attr, void* key1, void* key2) {
     int valueInt1;
     int valueInt2;
