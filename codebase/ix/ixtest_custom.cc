@@ -42,7 +42,7 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
     attr.type = TypeInt;
     attr.length = 4;
 
-    //indexManager->splitLeafPage(data, 1, ixfileHandle, attr);
+    
 
     return SUCCESS;
 }

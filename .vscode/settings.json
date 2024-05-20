@@ -11,7 +11,8 @@
         "optional": "cpp",
         "ratio": "cpp",
         "system_error": "cpp",
-        "tuple": "cpp"
+        "tuple": "cpp",
+        "ostream": "cpp"
     },
     "C_Cpp.errorSquiggles": "enabled",
     "editor.tokenColorCustomizations": {

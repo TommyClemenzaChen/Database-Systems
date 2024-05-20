@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <iostream>
 #include <cstring>
+#include <climits>
 
 #include "../rbf/rbfm.h"
 
@@ -30,7 +31,7 @@ typedef enum {
 } Flag;
 
 typedef struct MetaPageHeader{
-    unsigned rootNum;
+    PageNum rootNum;
 } MetaPageHeader;
 
 typedef struct TrafficPair {
