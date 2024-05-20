@@ -151,16 +151,83 @@ unsigned getKeyLength(void *key, Attribute attr) {
     return keyLength;
 }
 
+RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair) {
+    
+    LeafPageHeader currLeafPageHeader = getLeafPageHeader(currLeafData); 
+    
+    cout << "[Split] Curr num entries: " << currLeafPageHeader.numEntries << endl;
+
+    void* newKey = malloc(12);
+    RID rid;
+    unsigned currNumEntries = 0;
+    unsigned offset = sizeof(LeafPageHeader);
+    while (true) {
+        if (offset >= PAGE_SIZE / 2)  //stop reading after 2048 bytes
+            break;
+        offset += getKeyLength((char*)currLeafData+offset, attr); 
+        currNumEntries += 1;
+    }
+    cout << currLeafData << endl;
+    // Copy n bytes from newLeafData starting at offset
+    memcpy(newKey, (char*)currLeafData + offset, 12); // hard coded 12
+
+    cout << "[Split] currNumEntries var: " << currNumEntries << endl;
+
+    void *newLeafData = malloc(PAGE_SIZE);
+    newLeafPage(newLeafData);
+    ixFileHandle.appendPage(newLeafData);
+
+    LeafPageHeader newLeafPageHeader = getLeafPageHeader(newLeafData);
+
+    cout << "[Split] New leaf num entries: " << newLeafPageHeader.numEntries << endl;
+
+    cout << "[Split] Offset: " << offset << endl;
+    
+    newLeafPageHeader.flag = LEAF;
+    newLeafPageHeader.numEntries = currLeafPageHeader.numEntries - currNumEntries; // get the remaining number of entries on the page
+    newLeafPageHeader.FSO = PAGE_SIZE - offset;  // this may not be accurate, but if the page is full this should be true
+    newLeafPageHeader.next = 0; // set to 0 bc you cant set an unsigned to NULL
+    newLeafPageHeader.prev = currPageNum; 
+    
+    // Update the leaf page header
+    memcpy(newLeafData, &newLeafPageHeader, sizeof(LeafPageHeader));
+
+    // Split all the data that comes after offset into newLeafData
+    memcpy(newLeafData, (char*)currLeafData + offset, PAGE_SIZE - offset);
+    
+    // Optionally write the modified page back to the file
+    ixFileHandle.writePage(0, newLeafData);
+    
+    // Update the current leaf page to remove everything that was split from the page
+    currLeafPageHeader.numEntries = currNumEntries; 
+    currLeafPageHeader.FSO = offset; 
+    currLeafPageHeader.next = ixFileHandle.getNumberOfPages(); 
+    
+
+    // TODO: remove everything after offset from currLeafData
+    memset((char*)currLeafData + offset, 0, PAGE_SIZE - offset);    
+
+    cout << "offset: " << offset << endl;
+    cout << "curr num entries after split: " << currLeafPageHeader.numEntries << endl;
+    cout << "new num entries after split: " << newLeafPageHeader.numEntries << endl;
+
+    // Get middle entry and pass it as a traffic cop
+    cout << currLeafData << endl;
+    trafficPair.key = newKey;
+    trafficPair.pageNum = ixFileHandle.getNumberOfPages();
+
+    return SUCCESS;
+}
+
 RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr) {
     InternalPageHeader currInternalPageHeader = getInternalPageHeader(currInternalData); 
 
-    PageNum pagenum;    
     unsigned currNumEntries;
     unsigned offset = sizeof(InternalPageHeader);
     while (true) {
         if (offset >= PAGE_SIZE / 2)  //stop reading after 2048 bytes
             break;
-        offset += getKeyLength((char*)currInternalData + offset, attr) + sizeof(PageNum);
+        offset += getKeyLength((char*)currInternalData + offset, attr);
         currNumEntries += 1;
     }
 
@@ -187,52 +254,6 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
 
     // TODO: remove everything after offset from currPageData
     memset((char*)currInternalData + offset, 0, PAGE_SIZE - offset);    
-
-    return SUCCESS;
-}
-
-RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr) {
-
-    LeafPageHeader currLeafPageHeader = getLeafPageHeader(currLeafData); 
-    
-    RID rid;
-    unsigned currNumEntries;
-    unsigned offset = sizeof(LeafPageHeader);
-    while (true) {
-        if (offset >= PAGE_SIZE / 2)  //stop reading after 2048 bytes
-            break;
-        offset += getKeyLength((char*)currLeafData + offset, attr) + sizeof(RID); 
-        currNumEntries += 1;
-    }
-
-    void *newLeafData = malloc(PAGE_SIZE);
-    LeafPageHeader newLeafPageHeader;
-    newLeafPageHeader.flag = LEAF;
-    newLeafPageHeader.numEntries = currLeafPageHeader.numEntries - currNumEntries; // get the remaining number of entries on the page
-    newLeafPageHeader.FSO = PAGE_SIZE - offset;  // this may not be accurate, but if the page is full this should be true
-    newLeafPageHeader.next = 0; // set to 0 bc you cant set an unsigned to NULL
-    newLeafPageHeader.prev = currPageNum; 
-    
-
-    /* ------------------------------------
-        What order should these 3 lines be in? */
-    setLeafPageHeader(newLeafData, newLeafPageHeader);
-
-    ixFileHandle.appendPage(newLeafData);
-
-    // Split all the data that comes after offset into newInternalData
-    memcpy(newLeafData, (char*)currLeafData + offset, PAGE_SIZE - offset);
-
-    /* ------------------------------------*/
-
-    // Update the current leaf page to remove everything that was split from the page
-    currLeafPageHeader.numEntries = currNumEntries; 
-    currLeafPageHeader.FSO = offset; 
-    currLeafPageHeader.next = ixFileHandle.getNumberOfPages(); 
-    // don't set currLeafPageHeader.prev because it may have been previously set
-
-    // TODO: remove everything after offset from currLeafData
-    memset((char*)currLeafData + offset, 0, PAGE_SIZE - offset);    
 
     return SUCCESS;
 }
@@ -424,12 +445,67 @@ RC IndexManager::closeFile(IXFileHandle &ixfileHandle)
     return SUCCESS;
 }
 
-RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const void *key, const RID &rid,  unsigned rootPageNum, TrafficPair &trafficPair) {
+RC IndexManager::insertInternalPair(void *pageData, const Attribute &attr, TrafficPair &trafficPair) {
+    InternalPageHeader internalPageHeader = getInternalPageHeader(pageData);
+    //at this point, trafficPair shouldn't have null fields
+    unsigned keyLength = getKeyLength(trafficPair.key, attr);
+    
+    if (PAGE_SIZE - internalPageHeader.FSO < keyLength + sizeof(PageNum)) {
+        return NO_SPACE;
+    }
+
+    //find the correct index
+    unsigned offset = sizeof(InternalPageHeader);
+    for (int i = 0; i < internalPageHeader.numEntries; i++) {
+        if (compareKeys(attr, trafficPair.key, (char*)pageData + offset) < 0) {
+            break;
+        }
+        offset += keyLength + sizeof(RID);
+    }
+
+    return 0;
+}
+
+RC IndexManager::insertLeafPair(void *pageData, Attribute &attr, void *key, RID &rid) {
+    //we don't want duplicates
+    if (recordExists(pageData, key, rid, attr)) {
+        return DUPLICATE;
+    }
+
+    LeafPageHeader leafPageHeader = getLeafPageHeader(pageData);
+    unsigned keyLength = getKeyLength(key, attr);
+
+    if (PAGE_SIZE - leafPageHeader.FSO < keyLength + sizeof(RID)) {
+        return NO_SPACE;
+    }
+    
+    unsigned offset = sizeof(LeafPageHeader);
+    for (int i = 0; i < leafPageHeader.numEntries; i++) {
+        if (compareKeys(attr, key, (char*)pageData + offset) < 0) {
+            break;
+        }
+        offset += keyLength + sizeof(RID);
+    }
+    
+    //for entires that come after, shift to the right
+    memcpy((char*)pageData + keyLength + sizeof(RID), (char*)pageData + offset, leafPageHeader.FSO - offset);
+    
+    //insert the new entry
+    memcpy((char*)pageData + offset, key, keyLength);
+    memcpy((char*)pageData + offset + keyLength, &rid, sizeof(RID));
+
+    leafPageHeader.FSO -= keyLength + sizeof(RID);
+    leafPageHeader.numEntries += 1;
+
+    return SUCCESS;
+}
+
+RC IndexManager::insert(IXFileHandle &ixfileHandle, Attribute &attr, void *key, RID &rid,  unsigned pageNum, TrafficPair &trafficPair) {
     
     void *pageData = malloc(PAGE_SIZE);
 
     //start from the root page 
-    if (ixfileHandle.readPage(rootPageNum, pageData) != SUCCESS) {
+    if (ixfileHandle.readPage(pageNum, pageData) != SUCCESS) {
         return 1;
     }
 
@@ -441,7 +517,29 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
             free(pageData);
             return 0;
         }
+
+        //since trafficPair does not have NULL key, we have a split page
+
         
+    }
+
+    else if (isLeafPage(pageData)) {
+        //try inserting and find out if there's free space
+        RC rc = insertLeafPair(pageData, attr, key, rid);
+        if (rc == DUPLICATE) {
+            cout << "no need to insert this" << endl;
+            return DUPLICATE;
+        }
+
+        else if (rc == NO_SPACE) {
+            splitLeafPage(pageData, pageNum, ixfileHandle, attr, trafficPair);
+        }
+
+        else {
+            ixfileHandle.writePage(pageNum, pageData);
+            trafficPair.key = NULL;
+            free(pageData);
+        }
     }
 
 

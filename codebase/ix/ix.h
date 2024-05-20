@@ -17,6 +17,13 @@ class IX_ScanIterator;
 class IXFileHandle;
 
 typedef enum {
+    NO_SPACE = 1,
+    DUPLICATE = 2, 
+
+    
+} ERROR_CODES;
+
+typedef enum {
     INTERNAL = 0,
     LEAF = 1
 } Flag;
@@ -67,11 +74,11 @@ class IndexManager {
         // Close an ixfileHandle for an index.
         RC closeFile(IXFileHandle &ixfileHandle);
 
-        RC insertInternal(InternalPageHeader internalPageHeader, IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
+        RC insertInternalPair(void *pageData, const Attribute &attr, TrafficPair &trafficPair);
 
-        RC insertLeaf(LeafPageHeader leafPageHeader, IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
+        RC insertLeafPair(void *pageData, Attribute &attr, void *key, RID &rid);
 
-        RC insert(IXFileHandle &ixfileHandle, const Attribute &attr, const void *key, const RID &rid, unsigned rootPageNum, TrafficPair &trafficPair);
+        RC insert(IXFileHandle &ixfileHandle, const Attribute &attr, const void *key, const RID &rid, unsigned pageNum, TrafficPair &trafficPair);
 
         // Insert an entry into the given index that is indicated by the given ixfileHandle.
         RC insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
@@ -115,9 +122,9 @@ class IndexManager {
 
         bool isInternalPage(void *page);
 
-        RC splitInternalPage(void *currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr);
+        RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair);
 
-        RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr);
+        RC splitInternalPage(void *currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr);
 
         // Initialize and IX_ScanIterator to support a range search
         RC scan(IXFileHandle &ixfileHandle,

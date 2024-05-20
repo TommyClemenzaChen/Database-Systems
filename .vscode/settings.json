@@ -13,5 +13,8 @@
         "system_error": "cpp",
         "tuple": "cpp"
     },
-    "C_Cpp.errorSquiggles": "enabled"
+    "C_Cpp.errorSquiggles": "enabled",
+    "editor.tokenColorCustomizations": {
+        "comments": "#1bb00b"
+    }
 }
