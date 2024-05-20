@@ -12,7 +12,7 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
     indexManager->createFile(indexFileName);
     indexManager->openFile(indexFileName, ixfileHandle);
     
-    cout << ixfileHandle.getNumberOfPages() << endl;
+    cout << "[Test] Num pages at init: " << ixfileHandle.getNumberOfPages() << endl;
 
     // initialize empty traffic pair
     TrafficPair trafficPair;
@@ -23,7 +23,7 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
     rid.pageNum = 1;
     rid.slotNum = 1;
 
-    int stringLength = 5;
+    int stringLength = 921;
     const char* word = "Hello";
 
     void *data = malloc(PAGE_SIZE);
@@ -37,7 +37,7 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
 
     unsigned offset = sizeof(LeafPageHeader);
     
-    while (true) {
+    while (true) {        
         if (offset + sizeof(int) + sizeof(RID) > PAGE_SIZE) {
             break;
         }
@@ -104,7 +104,7 @@ int main () {
     Attribute attrAge;
     attrAge.length = 4;
     attrAge.name = "age";
-    attrAge.type = TypeVarChar;
+    attrAge.type = TypeInt;
 
     // testCompareKeys(indexManager);
 
@@ -115,7 +115,7 @@ int main () {
     RC result = testSplitLeafPage(indexFileName, attrAge);
     
     cout << "--------------------------------------------------------------------------" << endl;
-    cout << result << endl;
+    // cout << result << endl;
     if (result == success) {
         cerr << "Let's fucking go" << endl;
         return success;
