@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <iostream>
+#include <cstring>
 
 #include "../rbf/rbfm.h"
 
@@ -74,11 +75,11 @@ class IndexManager {
         // Close an ixfileHandle for an index.
         RC closeFile(IXFileHandle &ixfileHandle);
 
-        RC insertInternalPair(void *pageData, const Attribute &attr, TrafficPair &trafficPair);
+        RC insertInternalPair(void *pageData, const Attribute &attr, const void *key, const PageNum pageNum);
 
-        RC insertLeafPair(void *pageData, Attribute &attr, void *key, RID &rid);
+        RC insertLeafPair(void *pageData, const Attribute &attr, const void *key, const RID &rid);
 
-        RC insert(IXFileHandle &ixfileHandle, const Attribute &attr, const void *key, const RID &rid, unsigned pageNum, TrafficPair &trafficPair);
+        RC insert(IXFileHandle &ixfileHandle, const Attribute &attr, const void *key, const RID &rid, const unsigned pageNum, TrafficPair &trafficPair);
 
         // Insert an entry into the given index that is indicated by the given ixfileHandle.
         RC insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
@@ -92,9 +93,11 @@ class IndexManager {
 
         int compareKeys(Attribute attr, const void *key1, const void *key2);
 
-        bool compareRIDS(RID &rid1, RID &rid2);
+        bool compareRIDS(const RID &rid1, const RID &rid2);
 
-        bool recordExists(void *pageData, void *key, RID &rid, Attribute &attr);
+        bool leafPairExists(void *pageData, const void *key, const RID &rid, const Attribute &attr);
+        
+        bool trafficPairExists(void *pageData, const void *key, const PageNum pageNum, const Attribute &attr);
 
         RC newInternalPage(void *page);
 
@@ -121,6 +124,8 @@ class IndexManager {
         bool isLeafPage(void *page);
 
         bool isInternalPage(void *page);
+
+        unsigned getKeyLength(const void *key, const Attribute attr);
 
         RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair);
 
