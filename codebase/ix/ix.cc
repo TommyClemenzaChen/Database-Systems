@@ -146,10 +146,14 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
         offset += sizeOfAttr(attr, (char*)currLeafData+offset, rid); 
         currNumEntries += 1;
     }
+    
     cout << currLeafData << endl;
     // Copy n bytes from newLeafData starting at offset
-    memcpy(newKey, (char*)currLeafData + offset, 12); // hard coded 12
+    cout << currLeafData+offset << endl;
 
+    cout << newKey << endl;
+    memcpy(newKey, (char*)currLeafData + offset, 12); // hard coded 12
+    
     cout << "[Split] currNumEntries var: " << currNumEntries << endl;
 
     void *newLeafData = malloc(PAGE_SIZE);
@@ -464,7 +468,18 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 
 RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid)
 {
-
+    // allocate space for page
+    void* pageData = malloc(PAGE_SIZE);
+    
+    // find the leaf page 
+    int rc = search(pageData, key);
+    
+    // check if the data entry even exists -> recordExists()?
+    if (recordExists(pageData, key, rid, attribute)) {
+        return RECORD_DNE;
+    }
+    
+    // 
     return -1;
 }
 
