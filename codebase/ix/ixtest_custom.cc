@@ -24,8 +24,7 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
     rid.slotNum = 1;
 
     int stringLength = 5;
-    string word = "Hello";
-
+    const char* word = "Hello";
 
     void *data = malloc(PAGE_SIZE);
     
@@ -56,24 +55,22 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
     // Update the leaf page header
     memcpy(data, &leafPageHeader, sizeof(LeafPageHeader));
 
-    // Optionally write the modified page back to the file
-    ixfileHandle.writePage(0, data);
+    // // Optionally write the modified page back to the file
+    // ixfileHandle.writePage(0, data);
 
     cout << "[Test] Num entries after loop: " << leafPageHeader.numEntries << endl;
 
-    Attribute attr;
-    attr.name = "age";
-    attr.type = TypeInt;
-    attr.length = 4;
-    
     cout << "Num pages before: " << ixfileHandle.getNumberOfPages() << endl;
 
-    indexManager->splitLeafPage(data, 1, ixfileHandle, attr, trafficPair);
+    indexManager->splitLeafPage(data, 1, ixfileHandle, attribute, trafficPair);
 
     cout << "Num pages after: " << ixfileHandle.getNumberOfPages() << endl;
 
-    cout << endl << "Traffic pair key: " << trafficPair.key << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
+    int a;
+    memcpy(&a, trafficPair.key, sizeof(int));
+    cout << endl << "Traffic pair key: " << a << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
 
+    free(data);
     return SUCCESS;
 }
 
@@ -107,7 +104,7 @@ int main () {
     Attribute attrAge;
     attrAge.length = 4;
     attrAge.name = "age";
-    attrAge.type = TypeInt;
+    attrAge.type = TypeVarChar;
 
     // testCompareKeys(indexManager);
 

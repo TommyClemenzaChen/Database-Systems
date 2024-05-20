@@ -6,6 +6,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <iostream>
+#include <cstring>
+#include <climits>
 
 #include "../rbf/rbfm.h"
 
@@ -17,12 +19,19 @@ class IX_ScanIterator;
 class IXFileHandle;
 
 typedef enum {
+    NO_SPACE = 1,
+    DUPLICATE = 2, 
+
+    
+} ERROR_CODES;
+
+typedef enum {
     INTERNAL = 0,
     LEAF = 1
 } Flag;
 
 typedef struct MetaPageHeader{
-    unsigned rootNum;
+    PageNum rootNum;
 } MetaPageHeader;
 
 typedef struct TrafficPair {
@@ -67,9 +76,11 @@ class IndexManager {
         // Close an ixfileHandle for an index.
         RC closeFile(IXFileHandle &ixfileHandle);
 
-        RC insertInternal(InternalPageHeader internalPageHeader, IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
+        RC insertInternalPair(void *pageData, const Attribute &attr, const void *key, const PageNum pageNum);
 
-        RC insertLeaf(LeafPageHeader leafPageHeader, IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
+        RC insertLeafPair(void *pageData, const Attribute &attr, const void *key, const RID &rid);
+
+        RC insert(IXFileHandle &ixfileHandle, const Attribute &attr, const void *key, const RID &rid, const unsigned pageNum, TrafficPair &trafficPair);
 
         // Insert an entry into the given index that is indicated by the given ixfileHandle.
         RC insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
@@ -81,11 +92,13 @@ class IndexManager {
 
         unsigned getKeyStringLength(void *data);
 
-        int compareKeys(Attribute attr, void *key1, void *key2);
+        int compareKeys(Attribute attr, const void *key1, const void *key2);
 
-        bool compareRIDS(RID &rid1, RID &rid2);
+        bool compareRIDS(const RID &rid1, const RID &rid2);
 
-        bool recordExists(void *pageData, void *key, RID &rid, Attribute &attr);
+        bool leafPairExists(void *pageData, const void *key, const RID &rid, const Attribute &attr);
+        
+        bool trafficPairExists(void *pageData, const void *key, const PageNum pageNum, const Attribute &attr);
 
         RC newInternalPage(void *page);
 
@@ -105,11 +118,19 @@ class IndexManager {
 
         LeafPageHeader getLeafPageHeader(void *page);
 
+        unsigned getRootPageNum(IXFileHandle ixfileHandle);
+
+        unsigned getChildPageNum(const void *key, void *pageData, Attribute attr);
+
         bool isLeafPage(void *page);
 
         bool isInternalPage(void *page);
 
+        unsigned getKeyLength(const void *key, const Attribute attr);
+
         RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair);
+
+        RC splitInternalPage(void *currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair);
 
         // Initialize and IX_ScanIterator to support a range search
         RC scan(IXFileHandle &ixfileHandle,
@@ -122,17 +143,6 @@ class IndexManager {
 
         // Print the B+ tree in pre-order (in a JSON record format)
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
-        
-        // check if there's room to insert on an internal page
-        bool cantInsertInternal(InternalPageHeader internalPageHeader, Attribute attr, void *key, RID rid);
-
-        // calculate size of a key, rid pair, given the attribute
-        int sizeOfAttr(Attribute attr, void* key, RID &rid);
-        
-        // calculate size of a key, given the attribute
-        int sizeOfKey(Attribute attr, void* key);
-
-        RC splitInternalPage(void * currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr);
 
     protected:
         IndexManager();
