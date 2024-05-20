@@ -23,7 +23,7 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
     rid.pageNum = 1;
     rid.slotNum = 1;
 
-    int stringLength = 921;
+    int stringLength = 5;
     const char* word = "Hello";
 
     void *data = malloc(PAGE_SIZE);
@@ -37,14 +37,21 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
 
     unsigned offset = sizeof(LeafPageHeader);
     
-    while (true) {        
-        if (offset + sizeof(int) + sizeof(RID) > PAGE_SIZE) {
+    while (true) {
+        // Check if there is enough space to insert the key and RID
+        if (offset + sizeof(int) + stringLength + sizeof(RID) > PAGE_SIZE) {
             break;
         }
-        memcpy((char*)data + offset, &stringLength, sizeof(int));
+        // Copy the string length
+        memcpy((char *)data + offset, &stringLength, sizeof(int));
         offset += sizeof(int);
 
-        memcpy((char*)data + offset, &rid, sizeof(RID));
+        // Copy the string data
+        memcpy((char *)data + offset, word, stringLength);
+        offset += stringLength;
+
+        // Copy the RID
+        memcpy((char *)data + offset, &rid, sizeof(RID));
         offset += sizeof(RID);
 
         // Update the number of entries and free space offset in the header
@@ -66,9 +73,9 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
 
     cout << "Num pages after: " << ixfileHandle.getNumberOfPages() << endl;
 
-    int a;
-    memcpy(&a, trafficPair.key, sizeof(int));
-    cout << endl << "Traffic pair key: " << a << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
+    // int a;
+    // memcpy(&a, trafficPair.key, sizeof(int));
+    // cout << endl << "Traffic pair key: " << a << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
 
     free(data);
     return SUCCESS;
@@ -104,7 +111,7 @@ int main () {
     Attribute attrAge;
     attrAge.length = 4;
     attrAge.name = "age";
-    attrAge.type = TypeInt;
+    attrAge.type = TypeVarChar;
 
     // testCompareKeys(indexManager);
 

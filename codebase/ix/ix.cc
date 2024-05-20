@@ -158,7 +158,7 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
     
     LeafPageHeader currLeafPageHeader = getLeafPageHeader(currLeafData); 
     
-    // cout << "[Split] Curr num entries: " << currLeafPageHeader.numEntries << endl;
+    cout << "[Split] Curr num entries: " << currLeafPageHeader.numEntries << endl;
 
     RID rid;
     unsigned currNumEntries = 0;
@@ -167,12 +167,11 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
     while (true) {
         if (offset >= PAGE_SIZE / 2)  //stop reading after 2048 bytes
             break;
-        cout << offset << endl;
         offset += getKeyLength((char*)currLeafData+offset, attr) + sizeof(RID); 
         currNumEntries += 1;
     }
-    cout << offset << endl;
-    // cout << "[Split] currNumEntries var: " << currNumEntries << endl;
+    
+    cout << "[Split] currNumEntries var: " << currNumEntries << endl;
 
     void *newLeafData = malloc(PAGE_SIZE);
     newLeafPage(newLeafData);
@@ -182,13 +181,17 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
     newLeafPageHeader.prev = currPageNum;
     setLeafPageHeader(newLeafData, newLeafPageHeader);
 
+    cout << "[Split] Curr num entries: " << currLeafPageHeader.numEntries << " - " << currNumEntries << " = " << newLeafPageHeader.numEntries << endl;
+    
     cout << "[Split] New leaf num entries: " << newLeafPageHeader.numEntries << endl;
 
     cout << "[Split] FSO: " << newLeafPageHeader.FSO << endl;
 
+    cout << "[Split] Offset: " << offset<< endl;
+
     cout << "[Split] PAGE_SIZE-offset: " << PAGE_SIZE-offset << endl;
     
-    cout << "[Split] Offset: " << offset<< endl;
+
 
     // Split all the data that comes after offset into newLeafData
     memcpy((char*)newLeafData + newLeafPageHeader.FSO, (char*)currLeafData + offset, PAGE_SIZE - offset);
@@ -210,16 +213,20 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
     
     memcpy(middleKey, (char*)currLeafData + offset, keyLength);
     
-    int a;
-    memcpy(&a, middleKey, sizeof(int));
-    cout << "[Split] Middle key: " << a << endl;
+    int length;
+    memcpy(&length, middleKey, sizeof(int));
+    cout << "[Split] Length: " << length << endl;
+    char *temp = (char*)malloc(length+1);
+    memcpy(temp, (char*)middleKey + sizeof(int), length);
+    temp[length] = '\0';
+
+    cout << "[Split] Middle key: " << temp << endl;
 
     // remove everything after offset from currLeafData
     memset((char*)currLeafData + offset, 0, PAGE_SIZE - offset);    
 
     ixFileHandle.writePage(currPageNum, currLeafData);
 
-    cout << "[Split] Offset: " << offset << endl;
     cout << "[Split] Curr num entries after split: " << currLeafPageHeader.numEntries << endl;
     cout << "[Split] New num entries after split: " << newLeafPageHeader.numEntries << endl;
 
