@@ -441,6 +441,7 @@ RC IndexManager::createFile(const string &fileName)
     //root is always internal, except we know it's root from meta info
     newInternalPage(rootPageData);
 
+
     void *leafPageData = malloc(PAGE_SIZE);
     if (leafPageData == NULL) {
         return 5;
@@ -555,6 +556,7 @@ RC IndexManager::insertLeafPair(void *pageData, const Attribute &attr, const voi
     }
 
     LeafPageHeader leafPageHeader = getLeafPageHeader(pageData);
+    
     printLeafPageHeader(leafPageHeader);
     
     unsigned keyLength = getKeyLength(key, attr);
@@ -588,7 +590,6 @@ RC IndexManager::insertLeafPair(void *pageData, const Attribute &attr, const voi
 }
 
 RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const void *key, const RID &rid, const unsigned pageNum, TrafficPair &trafficPair) {
-
     void *pageData = malloc(PAGE_SIZE);
     //start from the root page 
     if (ixfileHandle.readPage(pageNum, pageData) != SUCCESS) {
@@ -604,6 +605,11 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
         cout << "ChildPageNum: " << childPageNum << endl;
         rc = insert(ixfileHandle, attr, key, rid, childPageNum, trafficPair);
         if (trafficPair.key == NULL) {
+            //check to see if we are trying to insert at first leaf and there's no traffic cop
+            if (getInternalPageHeader(pageData).numEntries == 0 && pageNum == 1) {
+                insertInternalPair(pageData, attr, key, childPageNum);
+                ixfileHandle.writePage(pageNum, pageData);
+            }
             free(pageData);
             return 0;
         }
@@ -769,12 +775,26 @@ void IndexManager::preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const A
 }
 
 void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const {
-    void *pageData = malloc(PAGE_SIZE);
-    ixfileHandle.readPage(2, pageData);
 
-    unsigned keyLength;
-    return preorder(ixfileHandle, 2, attribute, keyLength);
     
+    void *pageData = malloc(PAGE_SIZE);
+    ixfileHandle.readPage(1, pageData);
+    PageNum pageNum;
+    memcpy(&pageNum, (char*)pageData + sizeof(InternalPageHeader) + sizeof(int), sizeof(PageNum));
+    cout << pageNum << endl;
+
+    ixfileHandle.readPage(2, pageData);
+    int key;
+    memcpy(&key, (char*)pageData + sizeof(LeafPageHeader), sizeof(int));
+    cout << key << endl;
+    RID rid;
+    memcpy(&rid, (char*)pageData + sizeof(LeafPageHeader) + sizeof(int), sizeof(RID));
+    cout << rid.pageNum << " | " << rid.slotNum << endl;
+
+/*
+    unsigned keyLength;
+    return preorder(ixfileHandle, 1, attribute, keyLength);
+    */
 }
 
 IX_ScanIterator::IX_ScanIterator()
