@@ -190,11 +190,8 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
 
     indexManager->splitInternalPage(data, 1, ixfileHandle, attribute, trafficPair);
 
-    cout << "[Test] Num pages after: " << ixfileHandle.getNumberOfPages() << endl;
-
     char *temp = (char*)malloc((8+sizeof(PageNum))+1);
     memcpy(temp, (char*)trafficPair.key + sizeof(int), 8+sizeof(PageNum));
-    cout << "size of pageNum: " << sizeof(PageNum) << endl;
     temp[8] = '\0';
 
     cout << endl << "Traffic pair key: " << temp << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;

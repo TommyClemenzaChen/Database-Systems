@@ -255,7 +255,6 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     int newInternalKeySize = getKeyLength((char*)newInternalData+sizeof(InternalPageHeader), attr);
     char *temp = (char*)malloc(newInternalKeySize+1);
     memcpy(temp, (char*)newInternalData+sizeof(InternalPageHeader)+sizeof(int), newInternalKeySize+sizeof(PageNum));
-    cout << "size of pageNum: " << sizeof(PageNum) << endl;
     temp[newInternalKeySize] = '\0';
     cout << "First key in new internal: " << temp << endl;
 
