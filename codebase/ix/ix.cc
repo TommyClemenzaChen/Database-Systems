@@ -617,20 +617,63 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 
 RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid)
 {
+    unsigned j = getRootNum(ixfileHandle);
     
-    // // allocate space for page
-    // void* pageData = malloc(PAGE_SIZE);
-
-    // // find the leaf page 
-    // int rc = search(pageData, key);
-
-    // // check if the data entry even exists -> recordExists()?
-    // if (recordExists(pageData, key, rid, attribute)) {
-    //     return RECORD_DNE;
-    // }
-
-    // //     
-    return -1;
+    void* data = malloc(PAGE_SIZE);
+    
+    void* internalKey;
+    unsigned prevPageNum = UINT_MAX;
+    
+    while (true) {
+        readPage(j, data); // read in the root page
+        if (getFlag(data) == INTERNAL) {
+            InternalPageHeader internalPageHeader = getInternalPageHeader(data);
+            offset += sizeof(InternalPageHeader);
+            while (true) {
+                // get the key at the next entry
+                memcpy(&internalKey, (char*)data+offset, getKeyLength(attribute, key));
+                if (compareKeys(attribute, internalKey, key) <= 0) {
+                    // since we found less than or equal to the key, we need to fetch the corresponding pageNum
+                    unsigned keyPageNum;
+                    memcpy(&keyPageNum, (char*)data+offset+getKeyLength(attribute, key), sizeof(int));
+                    prevPageNum = keyPageNum; // set the prevPageNum to the one that's less than or equal to 
+                    offset += getKeyLength(attribute, key) + sizeof(PageNum);
+                }
+                else {
+                    // since the only entries in the page are greater than the key, the key must not exist
+                    if (prevPageNum == UINT_MAX) {
+                        return KEY_NOT_FOUND; }
+                    // else, go back to the previous pageNum which has an internal key that is less than or equal to the key, and return that
+                    j = prevPageNum;
+                    break;
+                }
+            }
+            offset = 0; // reset offset for next page to be read in if necessary
+        }
+        else { // is leaf page
+            // we've found the actual page where the key is stored! yay!
+            LeafPageHeader leafPageHeader = getLeafPageHeader(data);
+            offset = sizeof(LeafPageHeader); 
+            
+            // index through all the entries in the page until you find a match
+            while (true) {
+                // get the key at the next entry
+                memcpy(&internalKey, (char*)data+offset, getKeyLength(attribute, key));
+                if (compareKeys(attribute, internalKey, key) == 0) {
+                    // key found! yay! now we delete
+                    leafPageHeader.num_entries--;
+                    // do delete arithmetic (idk)
+                    break;
+                }
+                else if compareKeys(attribute, internalKey, key) > 0) {
+                    return KEY_NOT_FOUND;}
+                else {
+                    offset += getKeyLength(attribute, key) + sizeof(RID);
+                }
+            }
+        }
+    }
+    return SUCCESS;
 }
 
 RC IndexManager::scan(IXFileHandle &ixfileHandle,
