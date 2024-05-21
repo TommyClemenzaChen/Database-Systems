@@ -105,11 +105,11 @@ LeafPageHeader IndexManager::getLeafPageHeader(void *page) {
     return leafPageHeader;
 }
 
-unsigned IndexManager::getRootPageNum(IXFileHandle ixfileHandle) {
+PageNum IndexManager::getRootPageNum(IXFileHandle &ixfileHandle) const {
     void *temp = malloc(PAGE_SIZE);
     ixfileHandle.readPage(0, temp);
 
-    PageNum rootPageNum = 0;
+    PageNum rootPageNum;
     memcpy(&rootPageNum, temp, sizeof(PageNum));
 
     free(temp);
@@ -143,7 +143,7 @@ PageNum IndexManager::getChildPageNum(const void *key, void *pageData, Attribute
     return childPageNum;
 }
 
-Flag IndexManager::getFlag(void *data) {
+Flag IndexManager::getFlag(void *data) const {
     Flag flag;
     memcpy(&flag, data, sizeof(Flag));
     return flag;
@@ -598,7 +598,7 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
     
     RC rc;
     if (getFlag(pageData) == INTERNAL) {
-        unsigned childPageNum = getChildPageNum(key, pageData, attr);
+        PageNum childPageNum = getChildPageNum(key, pageData, attr);
         cout << "ChildPageNum: " << childPageNum << endl;
         rc = insert(ixfileHandle, attr, key, rid, childPageNum, trafficPair);
         if (trafficPair.key == NULL) {
@@ -612,15 +612,25 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
             return DUPLICATE;
         }
 
-        if (rc == NO_SPACE) {
-            splitInternalPage(pageData, pageNum, ixfileHandle, attr, trafficPair); // empty traffic cop
-            //try inserting again after splitting
-            rc = insertInternalPair(pageData, attr, trafficPair.key, trafficPair.pageNum);
-        }
-
         if (rc == SUCCESS) {
             ixfileHandle.writePage(pageNum, pageData);
+            free(pageData);
             trafficPair.key = NULL;
+            return SUCCESS;
+        }
+
+        if (rc == NO_SPACE) {
+            splitInternalPage(pageData, pageNum, ixfileHandle, attr, trafficPair);
+            //try inserting again after splitting
+            rc = insertInternalPair(pageData, attr, trafficPair.key, trafficPair.pageNum);
+            if (rc == SUCCESS) {
+                ixfileHandle.writePage(pageNum, pageData);
+                free(pageData);
+                trafficPair.key = NULL;
+                return SUCCESS;
+            }
+            else 
+                return SPLIT_ERROR;
         }
     }
 
@@ -633,20 +643,25 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
             return DUPLICATE;
         }
 
-        if (rc == NO_SPACE) {
-            splitLeafPage(pageData, pageNum, ixfileHandle, attr, trafficPair);
-            //try inserting again after splitting
-            rc = insertLeafPair(pageData, attr, key, rid);
-        }
-
         if (rc == SUCCESS) {
             ixfileHandle.writePage(pageNum, pageData);
-            trafficPair.key = NULL;
             free(pageData);
             return SUCCESS;
         }
 
-        return -1;   
+        if (rc == NO_SPACE) {
+            splitLeafPage(pageData, pageNum, ixfileHandle, attr, trafficPair);
+            //try inserting again after splitting
+            rc = insertLeafPair(pageData, attr, key, rid);
+            if (rc == SUCCESS) {
+                ixfileHandle.writePage(pageNum, pageData);
+                free(pageData);
+                trafficPair.key = NULL;
+                return SUCCESS;
+            }
+            else
+                return SPLIT_ERROR;
+        }  
     }
     
    return SUCCESS;
@@ -654,13 +669,14 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
 }
 
 RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid)
-{
+{   
     //we might need to split, so we pass in a NULL traffic cop
     TrafficPair trafficPair;
     trafficPair.key = NULL;
     trafficPair.pageNum = UINT_MAX;
 
-    unsigned rootPageNum = getRootPageNum(ixfileHandle);
+    PageNum rootPageNum = getRootPageNum(ixfileHandle);
+    
 
     //recursive calls until alll splits and inserts are complete
     return insert(ixfileHandle, attribute, key, rid, rootPageNum, trafficPair);
@@ -684,14 +700,22 @@ RC IndexManager::scan(IXFileHandle &ixfileHandle,
     return -1;
 }
 
+void IndexManager::preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute) const{
+    void *pageData = malloc(PAGE_SIZE);
+    ixFileHandle.readPage(pageNum, pageData);
+    //Base Case
+    if (getFlag(pageData) == LEAF) {
+
+    
+}
+
 void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const {
     void *pageData = malloc(PAGE_SIZE);
-    ixfileHandle.readPage(2, pageData);
+    PageNum rootPageNum = getRootPageNum(ixfileHandle);
 
-    int a;
-    memcpy(&a, (char*)pageData + sizeof(LeafPageHeader), sizeof(int));
     
-    cout << a << endl;
+    
+
 }
 
 IX_ScanIterator::IX_ScanIterator()

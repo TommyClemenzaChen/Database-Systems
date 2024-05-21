@@ -21,6 +21,7 @@ class IXFileHandle;
 typedef enum {
     NO_SPACE = 1,
     DUPLICATE = 2, 
+    SPLIT_ERROR = 3,
 
     
 } ERROR_CODES;
@@ -118,11 +119,11 @@ class IndexManager {
 
         LeafPageHeader getLeafPageHeader(void *page);
 
-        unsigned getRootPageNum(IXFileHandle ixfileHandle);
+        unsigned getRootPageNum(IXFileHandle &ixfileHandle) const;
 
         unsigned getChildPageNum(const void *key, void *pageData, Attribute attr);
 
-        Flag getFlag(void *page);
+        Flag getFlag(void *page) const;
 
         unsigned getKeyLength(const void *key, const Attribute attr);
 
@@ -139,9 +140,8 @@ class IndexManager {
                 bool highKeyInclusive,
                 IX_ScanIterator &ix_ScanIterator);
 
-        void dfs(IXFileHandle &ixfileHandle, const Attribute &attr, void *key);
-
         // Print the B+ tree in pre-order (in a JSON record format)
+        void preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute) const;
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
         void printLeafPageHeader(LeafPageHeader leafPageHeader);
         void printInternalPageHeader(InternalPageHeader internalPageHeader);
