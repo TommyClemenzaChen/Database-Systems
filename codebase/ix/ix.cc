@@ -707,45 +707,32 @@ RC IndexManager::scan(IXFileHandle &ixfileHandle,
     return -1;
 }
 
-void IndexManager::printKey(const Attribute &attribute, void *pageData, unsigned offset, unsigned &keyLength, void *key) const {
-    if (key != NULL) {
-        free(key);
-    }
-    
+void IndexManager::printKey(const Attribute &attribute, void *pageData, unsigned offset, unsigned &keyLength) const{
     switch (attribute.type) {
         case TypeInt:
             int intKey;
             memcpy(&intKey, (char*)pageData + offset, sizeof(int));
             cout << intKey;
-
-            key = malloc(intKey);
-            memcpy(key, &intKey, sizeof(int));
             keyLength = sizeof(int);
             break;
-        
         case TypeReal:
             float floatKey;
             memcpy(&floatKey, (char*)pageData + offset, sizeof(float));
             cout << floatKey;
-            
-            key = malloc(floatKey);
-            memcpy(key, &floatKey, sizeof(float));
             keyLength = sizeof(float);
             break;
-
         case TypeVarChar:
             int stringLength;
             memcpy(&stringLength, (char*)pageData + offset, sizeof(int));
-            void *stringKey = malloc(stringLength + 1);
-            memcpy(stringKey, (char*)pageData + offset + sizeof(int), stringLength);
+            char *stringKey = (char*)malloc(stringLength + 1);
+            memcpy(stringKey, (char*)pageData + offset, stringLength);
+            stringKey[stringLength] = '\0';
             cout << stringKey;
-
-            key = malloc(sizeof(int) + stringLength);
-            memcpy(key, &stringLength, sizeof(int));
-            memcpy((char*)key + sizeof(int), stringKey, stringLength);
             keyLength = sizeof(int) + stringLength;
             break;
     }
+
+    
 }
 
 void IndexManager::printRID(void *pageData, unsigned offset) const{
@@ -755,7 +742,7 @@ void IndexManager::printRID(void *pageData, unsigned offset) const{
 }
 
 
-void IndexManager::preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, unsigned &keyLength, void *key) const {
+void IndexManager::preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, unsigned &keyLength) const {
     void *pageData = malloc(PAGE_SIZE);
     ixFileHandle.readPage(pageNum, pageData);
 
@@ -764,42 +751,50 @@ void IndexManager::preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const A
         LeafPageHeader leafPageHeader = getLeafPageHeader(pageData);
         unsigned offset = sizeof(LeafPageHeader);
         
-        cout << "\t{\"keys\": [";
-        printKey(attribute, pageData, offset, keyLength, key);
-        for (int i = 0; i < leafPageHeader.numEntries; i++) {
-            printRID(pageData, offset);
-            if (i + 1 < leafPageHeader.numEntries) {
-                cout << ",";
+        cout << "\t{\"keys\":[";
+        do {
+            cout << "\"";
+            printKey(attribute, pageData, offset, keyLength);
+            cout << ":[";
+            for (int i = 0; i < leafPageHeader.numEntries; i++) {
+                printRID(pageData, offset);
+                if (i + 1 < leafPageHeader.numEntries) {
+                    cout << ",";
+                }
             }
-        }
-        cout << "] }";
+            cout << "]\"";
+            if (leafPageHeader.next != UINT_MAX)
+                cout << ",";
+        } while (leafPageHeader.next != UINT_MAX);
+        
+        cout << "]}";
     }
 
     else if (getFlag(pageData) == INTERNAL) {
         InternalPageHeader internalPageHeader = getInternalPageHeader(pageData);
         unsigned offset = sizeof(InternalPageHeader);
-        
-        cout << "{" << endl;
-        cout << "\"keys\": [";
+    
+        cout << "\"keys\":[";
         for (int i = 0; i < internalPageHeader.numEntries; i++) {
             if (i + 1 < internalPageHeader.numEntries) {
                 cout << ",";
             }
             cout << "\"";
-            printKey(attribute, pageData, offset, keyLength, key);
+            printKey(attribute, pageData, offset, keyLength);
             cout << "\"";
         }
         cout << "]," << endl;
 
-        cout << "\"children\": [" << endl;
+        cout << "\"children\":[" << endl;
         
         for (int i = 0; i < internalPageHeader.numEntries; i++) {
-            if (i + 1 < internalPageHeader.numEntries) {
+            PageNum childPageNum = getChildPageNum((char*)pageData + offset, pageData, attribute);
+            preorder(ixFileHandle, childPageNum, attribute, keyLength);
+            if (i + 1< internalPageHeader.numEntries) {
                 cout << ",";
             }
-            preorder(ixFileHandle, pageNum + 1, attribute, keyLength, key);
         }
-        cout << "] }" << endl;
+        cout << endl << "]" << endl;
         
     }
 
@@ -827,7 +822,9 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
     void *key = NULL;
     unsigned keyLength;
     
-    return preorder(ixfileHandle, 1, attribute, keyLength, key);
+    cout << "{" << endl;
+    preorder(ixfileHandle, 1, attribute, keyLength);
+    cout << "}" << endl;
     
 }
 

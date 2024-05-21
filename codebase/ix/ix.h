@@ -141,12 +141,12 @@ class IndexManager {
                 bool highKeyInclusive,
                 IX_ScanIterator &ix_ScanIterator);
 
-        void printKey(const Attribute &attribute, void *pageData, unsigned offset, unsigned &keyLength, void *key) const;
+        void printKey(const Attribute &attribute, void *pageData, unsigned offset, unsigned &keyLength) const;
 
         void printRID(void *pageData, unsigned offset) const;
 
         // Print the B+ tree in pre-order (in a JSON record format)
-        void preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, unsigned &keyLength, void *key) const;
+        void preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, unsigned &keyLength) const;
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
         void printLeafPageHeader(LeafPageHeader leafPageHeader);
         void printInternalPageHeader(InternalPageHeader internalPageHeader);
