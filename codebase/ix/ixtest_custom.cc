@@ -8,25 +8,42 @@ IndexManager *indexManager;
 int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
     // open index file
     IXFileHandle ixfileHandle;
-    
+      
     indexManager->createFile(indexFileName);
     indexManager->openFile(indexFileName, ixfileHandle);
     
+    cout << ixfileHandle.getNumberOfPages() << endl;
+
+    // initialize empty traffic pair
+    TrafficPair trafficPair;
+    trafficPair.key = NULL;
+    trafficPair.pageNum = 0;
+
     RID rid;
     rid.pageNum = 1;
     rid.slotNum = 1;
 
     int stringLength = 5;
-    string word = "Hello";
-    
+    char word[6] = "Hello";
 
     void *data = malloc(PAGE_SIZE);
-    LeafPageHeader leafPageHeader;
-    indexManager->setLeafPageHeader(data, leafPageHeader);
+    
+    indexManager->newLeafPage(data);
+    ixfileHandle.appendPage(data);
+
+    LeafPageHeader leafPageHeader = indexManager->getLeafPageHeader(data);
+
+    cout << "[Test] Leaf num entries before loop: " << leafPageHeader.numEntries << endl;
+
     unsigned offset = sizeof(LeafPageHeader);
+
+    memcpy((char*)data + offset, &stringLength, sizeof(int));
+    offset += sizeof(int);
+    memcpy((char*)data + offset, &word, stringLength);
+    offset += stringLength;
     
     while (true) {
-        if (offset >= PAGE_SIZE) {
+        if (offset + sizeof(int) + stringLength + sizeof(RID) > PAGE_SIZE) {
             break;
         }
         memcpy((char*)data + offset, &stringLength, sizeof(int));
@@ -34,15 +51,31 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
         memcpy((char*)data + offset, &word, stringLength);
         offset += stringLength;
 
+        memcpy((char*)data + offset, &rid, sizeof(RID));
+        offset += sizeof(RID);
+
+        // Update the number of entries and free space offset in the header
+        leafPageHeader.numEntries += 1;
+        leafPageHeader.FSO = offset;
     }
     
-    cout << offset << endl;
-    Attribute attr;
-    attr.name = "age";
-    attr.type = TypeInt;
-    attr.length = 4;
+    // Update the leaf page header
+    memcpy(data, &leafPageHeader, sizeof(LeafPageHeader));
 
+    cout << "[Test] Num entries after loop: " << leafPageHeader.numEntries << endl;
+
+    Attribute attr;
+    attr.name = "Name";
+    attr.type = TypeVarChar;
+    attr.length = 50;
     
+    cout << "Num pages before: " << ixfileHandle.getNumberOfPages() << endl;
+
+    indexManager->splitLeafPage(data, 1, ixfileHandle, attr, trafficPair);
+
+    cout << "Num pages after: " << ixfileHandle.getNumberOfPages() << endl;
+
+    cout << endl << "Traffic pair key: " << trafficPair.key << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
 
     return SUCCESS;
 }
@@ -79,12 +112,15 @@ int main () {
     attrAge.name = "age";
     attrAge.type = TypeInt;
 
-    testCompareKeys(indexManager);
+    // testCompareKeys(indexManager);
+
+    cout << "--------------------------------------------------------------------------" << endl;
 
     //populate the files
     
-
     RC result = testSplitLeafPage(indexFileName, attrAge);
+    
+    cout << "--------------------------------------------------------------------------" << endl;
     cout << result << endl;
     if (result == success) {
         cerr << "Let's fucking go" << endl;

@@ -122,15 +122,13 @@ class IndexManager {
 
         unsigned getChildPageNum(const void *key, void *pageData, Attribute attr);
 
-        bool isLeafPage(void *page);
-
-        bool isInternalPage(void *page);
+        Flag getFlag(void *page);
 
         unsigned getKeyLength(const void *key, const Attribute attr);
 
         RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair);
 
-        RC splitInternalPage(void *currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr);
+        RC splitInternalPage(void *currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair);
 
         // Initialize and IX_ScanIterator to support a range search
         RC scan(IXFileHandle &ixfileHandle,
@@ -141,13 +139,18 @@ class IndexManager {
                 bool highKeyInclusive,
                 IX_ScanIterator &ix_ScanIterator);
 
+        void dfs(IXFileHandle &ixfileHandle, const Attribute &attr, void *key);
+
         // Print the B+ tree in pre-order (in a JSON record format)
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
-
+        void printLeafPageHeader(LeafPageHeader leafPageHeader);
+        void printInternalPageHeader(InternalPageHeader internalPageHeader);
+    
     protected:
         IndexManager();
         ~IndexManager();
 
+        
 
     private:
         static IndexManager *_index_manager;
