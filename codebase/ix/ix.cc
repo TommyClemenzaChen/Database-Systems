@@ -662,12 +662,12 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
                 if (compareKeys(attribute, internalKey, key) == 0) {
                     // key found! yay! now we delete
                     leafPageHeader.num_entries--;
-                    // do delete arithmetic (idk)
+                    // do delete arithmetic (haven't implemented yet)
                     break;
                 }
-                else if compareKeys(attribute, internalKey, key) > 0) {
-                    return KEY_NOT_FOUND;}
-                else {
+                else if (compareKeys(attribute, internalKey, key) > 0) {
+                    return KEY_NOT_FOUND; // could also use recordExists() at the beginning of the else if {}
+                } else {
                     offset += getKeyLength(attribute, key) + sizeof(RID);
                 }
             }
