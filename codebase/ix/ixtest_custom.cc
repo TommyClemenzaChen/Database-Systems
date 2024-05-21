@@ -150,7 +150,7 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
     char *temp = (char*)malloc((9+sizeof(PageNum))+1);
     memcpy(temp, (char*)trafficPair.key + sizeof(int), 9+sizeof(PageNum));
     cout << "size of pageNum: " << sizeof(PageNum) << endl;
-    temp[13] = '\0';
+    temp[5] = '\0';
 
     cout << endl << "Traffic pair key: " << temp << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
 

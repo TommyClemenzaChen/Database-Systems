@@ -617,7 +617,19 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 
 RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid)
 {
+    
+    // // allocate space for page
+    // void* pageData = malloc(PAGE_SIZE);
 
+    // // find the leaf page 
+    // int rc = search(pageData, key);
+
+    // // check if the data entry even exists -> recordExists()?
+    // if (recordExists(pageData, key, rid, attribute)) {
+    //     return RECORD_DNE;
+    // }
+
+    // //     
     return -1;
 }
 
