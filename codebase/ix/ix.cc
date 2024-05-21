@@ -654,18 +654,35 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
             // we've found the actual page where the key is stored! yay!
             LeafPageHeader leafPageHeader = getLeafPageHeader(data);
             offset = sizeof(LeafPageHeader); 
-            
+
             // index through all the entries in the page until you find a match
             while (true) {
                 // get the key at the next entry
                 memcpy(&internalKey, (char*)data+offset, getKeyLength(attribute, key));
                 if (compareKeys(attribute, internalKey, key) == 0) {
                     // key found! yay! now we delete
-                    leafPageHeader.num_entries--;
-                    // do delete arithmetic (haven't implemented yet)
-                    break;
+                    unsigned entrySize = getKeyLength(attribute, key) + sizeof(RID);
+
+                    // Move subsequent entries up to fill the gap
+                    memmove((char*)data + offset, (char*)data + offset + entrySize, PAGE_SIZE - offset - entrySize);
+
+                    // Update the leaf page header
+                    leafPageHeader.numEntries--;
+                    leafPageHeader.freeSpaceOffset -= entrySize;
+
+                    // Write the updated header back to the data
+                    memcpy(data, &leafPageHeader, sizeof(LeafPageHeader));
+
+                    // Write the modified page back to the file
+                    ixfileHandle.writePage(j, data);
+
+                    free(internalKey); // Free allocated memory
+                    free(data); // Free allocated memory
+                    return SUCCESS;
                 }
                 else if (compareKeys(attribute, internalKey, key) > 0) {
+                    free(internalKey); // Free allocated memory
+                    free(data); // Free allocated memory
                     return KEY_NOT_FOUND; // could also use recordExists() at the beginning of the else if {}
                 } else {
                     offset += getKeyLength(attribute, key) + sizeof(RID);
@@ -673,6 +690,8 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
             }
         }
     }
+    free(internalKey); // Free allocated memory
+    free(data); // Free allocated memory
     return SUCCESS;
 }
 
