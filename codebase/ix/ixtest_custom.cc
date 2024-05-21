@@ -69,17 +69,96 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
 
     cout << "Num pages before: " << ixfileHandle.getNumberOfPages() << endl;
 
-    indexManager->splitLeafPage(data, 1, ixfileHandle, attribute, trafficPair);
+    indexManager->splitLeafPage(data, 3, ixfileHandle, attribute, trafficPair);
 
     cout << "Num pages after: " << ixfileHandle.getNumberOfPages() << endl;
 
-    // int a;
-    // memcpy(&a, trafficPair.key, sizeof(int));
-    // cout << endl << "Traffic pair key: " << a << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
+    char *temp = (char*)malloc(10);
+    memcpy(temp, (char*)trafficPair.key + sizeof(int), 9);
+    temp[9] = '\0';
+
+    cout << endl << "Traffic pair key: " << temp << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
 
     free(data);
     return SUCCESS;
 }
+
+
+int testSplitInternalPage(const string &indexFileName, const Attribute &attribute) {
+    // open index file
+    IXFileHandle ixfileHandle;
+      
+    indexManager->createFile(indexFileName);
+    indexManager->openFile(indexFileName, ixfileHandle);
+    
+    cout << "[Test] Num pages at init: " << ixfileHandle.getNumberOfPages() << endl;
+
+    // initialize empty traffic pair
+    TrafficPair trafficPair;
+    trafficPair.key = NULL;
+    trafficPair.pageNum = 0;
+
+    RID rid;
+    rid.pageNum = 1;
+    rid.slotNum = 1;
+
+    int stringLength = 5;
+    const char* word = "Hello";
+
+    void *data = malloc(PAGE_SIZE);
+    
+    indexManager->newInternalPage(data);
+    ixfileHandle.appendPage(data);
+
+    InternalPageHeader internalPageHeader = indexManager->getInternalPageHeader(data);
+
+    cout << "[Test] Leaf num entries before loop: " << internalPageHeader.numEntries << endl;
+
+    unsigned offset = sizeof(internalPageHeader);
+    
+    while (true) {
+        // Check if there is enough space to insert the key and RID
+        if (offset + sizeof(int) + stringLength + sizeof(RID) > PAGE_SIZE) {
+            break;
+        }
+        // Copy the string length
+        memcpy((char *)data + offset, &stringLength, sizeof(int));
+        offset += sizeof(int);
+
+        // Copy the string data
+        memcpy((char *)data + offset, word, stringLength);
+        offset += stringLength;
+
+        // Copy the RID
+        memcpy((char *)data + offset, &rid, sizeof(RID));
+        offset += sizeof(RID);
+
+        // Update the number of entries and free space offset in the header
+        internalPageHeader.numEntries += 1;
+        internalPageHeader.FSO = offset;
+    }
+    
+    // Update the leaf page header
+    memcpy(data, &internalPageHeader, sizeof(internalPageHeader));
+
+    cout << "[Test] Num entries after loop: " << internalPageHeader.numEntries << endl;
+
+    cout << "[Test] Num pages before: " << ixfileHandle.getNumberOfPages() << endl;
+
+    indexManager->splitLeafPage(data, 1, ixfileHandle, attribute, trafficPair);
+
+    cout << "[Test] Num pages after: " << ixfileHandle.getNumberOfPages() << endl;
+
+    char *temp = (char*)malloc(10);
+    memcpy(temp, (char*)trafficPair.key + sizeof(int), 9);
+    temp[9] = '\0';
+
+    cout << endl << "Traffic pair key: " << temp << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
+
+    free(data);
+    return SUCCESS;
+}
+
 
 void testCompareKeys(IndexManager *indexManager) {
      //test compareKeys
@@ -120,6 +199,8 @@ int main () {
     //populate the files
     
     RC result = testSplitLeafPage(indexFileName, attrAge);
+
+    // result = testSplitInternalPage(indexFileName, attrAge);
     
     cout << "--------------------------------------------------------------------------" << endl;
     // cout << result << endl;
