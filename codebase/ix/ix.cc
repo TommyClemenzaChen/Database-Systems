@@ -34,7 +34,7 @@ RC IndexManager::newMetaPage(void *page) {
     memset(page, 0, PAGE_SIZE);
     //write meta page header
     MetaPageHeader metaPageHeader;
-    metaPageHeader.rootNum = 0;
+    metaPageHeader.rootNum = 1;
     setMetaPageHeader(page, metaPageHeader);
     return SUCCESS;
 }
@@ -95,7 +95,7 @@ unsigned IndexManager::getRootPageNum(IXFileHandle ixfileHandle) {
     void *temp = malloc(PAGE_SIZE);
     ixfileHandle.readPage(0, temp);
 
-    unsigned rootPageNum = 0;
+    PageNum rootPageNum;
     memcpy(&rootPageNum, temp, sizeof(PageNum));
 
     free(temp);
@@ -370,7 +370,7 @@ bool IndexManager::trafficPairExists(void *pageData, const void *key, const Page
 
 RC IndexManager::createFile(const string &fileName)
 {
-    if (fileExists(fileName)) {
+        if (fileExists(fileName)) {
         return 1;
     }
     
@@ -405,8 +405,10 @@ RC IndexManager::createFile(const string &fileName)
     IXFileHandle ixfileHandle;
     ixfileHandle.setfd(iFile);
 
+
     ixfileHandle.appendPage(metaPageData);
     ixfileHandle.appendPage(rootPageData);
+    ixfileHandle.appendPage(leafPageData);
 
     closeFile(ixfileHandle);
 

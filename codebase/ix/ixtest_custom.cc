@@ -98,18 +98,16 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
     trafficPair.key = NULL;
     trafficPair.pageNum = 0;
 
-    RID rid;
-    rid.pageNum = 1;
-    rid.slotNum = 1;
+    PageNum pageNum = 2;
 
     int stringLength = 5;
     const char* word = "Hello";
 
     void *data = malloc(PAGE_SIZE);
+    ixfileHandle.readPage(1, data);
     
-    indexManager->newInternalPage(data);
-    ixfileHandle.appendPage(data);
-
+    // how do i get the root page number and then point to that?
+    
     InternalPageHeader internalPageHeader = indexManager->getInternalPageHeader(data);
 
     cout << "[Test] Leaf num entries before loop: " << internalPageHeader.numEntries << endl;
@@ -118,7 +116,7 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
     
     while (true) {
         // Check if there is enough space to insert the key and RID
-        if (offset + sizeof(int) + stringLength + sizeof(RID) > PAGE_SIZE) {
+        if (offset + sizeof(int) + stringLength + sizeof(pageNum) > PAGE_SIZE) {
             break;
         }
         // Copy the string length
@@ -129,9 +127,9 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
         memcpy((char *)data + offset, word, stringLength);
         offset += stringLength;
 
-        // Copy the RID
-        memcpy((char *)data + offset, &rid, sizeof(RID));
-        offset += sizeof(RID);
+        // Copy the PageNum
+        memcpy((char *)data + offset, &pageNum, sizeof(PageNum));
+        offset += sizeof(PageNum);
 
         // Update the number of entries and free space offset in the header
         internalPageHeader.numEntries += 1;
@@ -145,13 +143,14 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
 
     cout << "[Test] Num pages before: " << ixfileHandle.getNumberOfPages() << endl;
 
-    indexManager->splitLeafPage(data, 1, ixfileHandle, attribute, trafficPair);
+    indexManager->splitInternalPage(data, 1, ixfileHandle, attribute, trafficPair);
 
     cout << "[Test] Num pages after: " << ixfileHandle.getNumberOfPages() << endl;
 
-    char *temp = (char*)malloc(10);
-    memcpy(temp, (char*)trafficPair.key + sizeof(int), 9);
-    temp[9] = '\0';
+    char *temp = (char*)malloc((9+sizeof(PageNum))+1);
+    memcpy(temp, (char*)trafficPair.key + sizeof(int), 9+sizeof(PageNum));
+    cout << "size of pageNum: " << sizeof(PageNum) << endl;
+    temp[13] = '\0';
 
     cout << endl << "Traffic pair key: " << temp << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
 
@@ -200,7 +199,9 @@ int main () {
     
     RC result = testSplitLeafPage(indexFileName, attrAge);
 
-    // result = testSplitInternalPage(indexFileName, attrAge);
+    cout << "--------------------------------------------------------------------------" << endl;
+
+    result = testSplitInternalPage(indexFileName, attrAge);
     
     cout << "--------------------------------------------------------------------------" << endl;
     // cout << result << endl;
