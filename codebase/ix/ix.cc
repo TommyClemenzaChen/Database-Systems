@@ -543,9 +543,9 @@ RC IndexManager::insertInternalPair(void *pageData, const Attribute &attr, const
     internalPageHeader.FSO -= keyLength + sizeof(PageNum);
     internalPageHeader.numEntries += 1;
 
-    return SUCCESS;
+    setInternalPageHeader(pageData, internalPageHeader);
 
-    return 0;
+    return SUCCESS;
 }
 
 RC IndexManager::insertLeafPair(void *pageData, const Attribute &attr, const void *key, const RID &rid) {
@@ -609,6 +609,7 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
             if (getInternalPageHeader(pageData).numEntries == 0 && pageNum == 1) {
                 insertInternalPair(pageData, attr, key, childPageNum);
                 ixfileHandle.writePage(pageNum, pageData);
+                cout << "entries: " << getInternalPageHeader(pageData).numEntries << endl;
             }
             free(pageData);
             return 0;
@@ -706,13 +707,19 @@ RC IndexManager::scan(IXFileHandle &ixfileHandle,
     return -1;
 }
 
-void IndexManager::printKey(const Attribute &attribute, void *pageData, unsigned offset, unsigned &keyLength) const {
+void IndexManager::printKey(const Attribute &attribute, void *pageData, unsigned offset, unsigned &keyLength, void *key) const {
+    if (key != NULL) {
+        free(key);
+    }
+    
     switch (attribute.type) {
         case TypeInt:
             int intKey;
             memcpy(&intKey, (char*)pageData + offset, sizeof(int));
             cout << intKey;
 
+            key = malloc(intKey);
+            memcpy(key, &intKey, sizeof(int));
             keyLength = sizeof(int);
             break;
         
@@ -721,6 +728,8 @@ void IndexManager::printKey(const Attribute &attribute, void *pageData, unsigned
             memcpy(&floatKey, (char*)pageData + offset, sizeof(float));
             cout << floatKey;
             
+            key = malloc(floatKey);
+            memcpy(key, &floatKey, sizeof(float));
             keyLength = sizeof(float);
             break;
 
@@ -731,6 +740,9 @@ void IndexManager::printKey(const Attribute &attribute, void *pageData, unsigned
             memcpy(stringKey, (char*)pageData + offset + sizeof(int), stringLength);
             cout << stringKey;
 
+            key = malloc(sizeof(int) + stringLength);
+            memcpy(key, &stringLength, sizeof(int));
+            memcpy((char*)key + sizeof(int), stringKey, stringLength);
             keyLength = sizeof(int) + stringLength;
             break;
     }
@@ -742,41 +754,62 @@ void IndexManager::printRID(void *pageData, unsigned offset) const{
     cout << "(" << rid.pageNum << "," << rid.slotNum << ")";
 }
 
-void IndexManager::preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, unsigned &keyLength) const {
+
+void IndexManager::preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, unsigned &keyLength, void *key) const {
     void *pageData = malloc(PAGE_SIZE);
     ixFileHandle.readPage(pageNum, pageData);
 
     //Base Case
     if (getFlag(pageData) == LEAF) {
         LeafPageHeader leafPageHeader = getLeafPageHeader(pageData);
-        unsigned offset = sizeof(LeafPageHeader) + 4;
+        unsigned offset = sizeof(LeafPageHeader);
         
-        cout << "[";
+        cout << "\t{\"keys\": [";
+        printKey(attribute, pageData, offset, keyLength, key);
         for (int i = 0; i < leafPageHeader.numEntries; i++) {
             printRID(pageData, offset);
             if (i + 1 < leafPageHeader.numEntries) {
                 cout << ",";
             }
         }
-        cout << "]";
+        cout << "] }";
     }
 
     else if (getFlag(pageData) == INTERNAL) {
         InternalPageHeader internalPageHeader = getInternalPageHeader(pageData);
         unsigned offset = sizeof(InternalPageHeader);
+        
+        cout << "{" << endl;
+        cout << "\"keys\": [";
         for (int i = 0; i < internalPageHeader.numEntries; i++) {
-            cout << "[\"";
-            printKey(attribute, pageData, offset, keyLength);
-            preorder(ixFileHandle, pageNum + 1, attribute, keyLength);
-            cout << "]\"";
+            if (i + 1 < internalPageHeader.numEntries) {
+                cout << ",";
+            }
+            cout << "\"";
+            printKey(attribute, pageData, offset, keyLength, key);
+            cout << "\"";
         }
+        cout << "]," << endl;
+
+        cout << "\"children\": [" << endl;
+        
+        for (int i = 0; i < internalPageHeader.numEntries; i++) {
+            if (i + 1 < internalPageHeader.numEntries) {
+                cout << ",";
+            }
+            preorder(ixFileHandle, pageNum + 1, attribute, keyLength, key);
+        }
+        cout << "] }" << endl;
+        
     }
+
+    free(pageData);
     
 }
 
 void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const {
 
-    
+/*
     void *pageData = malloc(PAGE_SIZE);
     ixfileHandle.readPage(1, pageData);
     PageNum pageNum;
@@ -790,11 +823,12 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
     RID rid;
     memcpy(&rid, (char*)pageData + sizeof(LeafPageHeader) + sizeof(int), sizeof(RID));
     cout << rid.pageNum << " | " << rid.slotNum << endl;
-
-/*
+*/
+    void *key = NULL;
     unsigned keyLength;
-    return preorder(ixfileHandle, 1, attribute, keyLength);
-    */
+    
+    return preorder(ixfileHandle, 1, attribute, keyLength, key);
+    
 }
 
 IX_ScanIterator::IX_ScanIterator()
