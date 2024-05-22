@@ -63,6 +63,7 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
     char *temp = (char*)malloc(10);
     memcpy(temp, (char*)trafficPair.key + sizeof(int), 9);
     temp[9] = '\0';
+    cout << "Temp: " << temp << endl;
 
     free(data);
     return SUCCESS;
@@ -125,9 +126,9 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
     
     indexManager->splitInternalPage(data, 1, ixfileHandle, attribute, trafficPair);
 
-    rootPageNum = indexManager->getRootPageNum(ixfileHandle);
+    unsigned rootPageNum = indexManager->getRootPageNum(ixfileHandle);
 
-    unsigned keyLength = indexManager->getKeyLength(trafficPair.key, attribute);
+    unsigned keyLength = indexManager->getKeyStringLength(trafficPair.key);
     char *temp = (char*)malloc(keyLength + 1);
     memcpy(temp, (char*)trafficPair.key+sizeof(int), keyLength+sizeof(PageNum));
     temp[keyLength] = '\0';
@@ -176,9 +177,9 @@ int main () {
 
     // populate the files
     
-    // RC result = testSplitLeafPage(indexFileName, attrAge);
+    RC result = testSplitLeafPage(indexFileName, attrAge);
 
-    RC result = testSplitInternalPage(indexFileName, attrAge);
+    result = testSplitInternalPage(indexFileName, attrAge);
     
     if (result == success) {
         cerr << "Let's fucking go" << endl;

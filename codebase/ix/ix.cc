@@ -189,7 +189,7 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
     // Get middle entry and pass it as a traffic cop
     unsigned keyLength = getKeyLength((char*)currLeafData+offset, attr);
     
-    void *middleKey = malloc(keyLength + sizeof(PageNum));
+    void *middleKey = malloc(keyLength /*+ sizeof(PageNum)*/);
     
     memcpy(middleKey, (char*)currLeafData + offset, keyLength);
 
@@ -200,7 +200,7 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
     void *newLeafData = malloc(PAGE_SIZE);
     newLeafPage(newLeafData);
     LeafPageHeader newLeafPageHeader = getLeafPageHeader(newLeafData);
-    newLeafPageHeader.FSO = PAGE_SIZE-splitOffset;
+    newLeafPageHeader.FSO = (PAGE_SIZE- splitOffset) - sizeof(LeafPageHeader);
     newLeafPageHeader.numEntries = currLeafPageHeader.numEntries - currNumEntries -1;
     newLeafPageHeader.next = UINT_MAX;  //some number that we can't reach
     newLeafPageHeader.prev = currPageNum;
@@ -245,7 +245,7 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
 
     // Get middle entry and pass it as a traffic cop
     unsigned keyLength = getKeyLength((char*)currInternalData+offset, attr);    
-    void *middleKey = malloc(keyLength + sizeof(PageNum));
+    void *middleKey = malloc(keyLength /*+ sizeof(PageNum)*/);
     memcpy(middleKey, (char*)currInternalData + offset, keyLength);
 
     // Split all the data that comes after offset and middle key into newInternalData
@@ -256,7 +256,7 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     newInternalPage(newInternalData);
     InternalPageHeader newInternalPageHeader = getInternalPageHeader(newInternalData);
     newInternalPageHeader.numEntries = currInternalPageHeader.numEntries - currNumEntries - 1; // -1 so you subtract the middle key entry
-    newInternalPageHeader.FSO = PAGE_SIZE - splitOffset;
+    newInternalPageHeader.FSO = sizeof(InternalPageHeader) + (PAGE_SIZE - splitOffset);
     setInternalPageHeader(newInternalData, newInternalPageHeader);
 
     memcpy((char*)newInternalData + sizeof(InternalPageHeader), (char*)currInternalData + splitOffset, PAGE_SIZE - splitOffset);
@@ -588,10 +588,10 @@ RC IndexManager::insertLeafPair(void *pageData, const Attribute &attr, const voi
     }
     cout << "Offset: " << offset << endl;
 
-    //for entires that come after, shift to the right
+    // for entires that come after, shift to the right
     memcpy((char*)pageData + keyLength + sizeof(RID), (char*)pageData + offset, leafPageHeader.FSO - offset);
     
-    //insert the new entry
+    // insert the new entry
     memcpy((char*)pageData + offset, key, keyLength);
     memcpy((char*)pageData + offset + keyLength, &rid, sizeof(RID));
 
@@ -918,7 +918,7 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 }
 
 IX_ScanIterator::IX_ScanIterator()
-: currPage(0), currKey(0), totalPage(0)
+: currPage(0), currKey(0), totalPage(0), currNumEntries(0), currOffset(0)
 {
     _indexManager = IndexManager::instance();
 }
@@ -931,7 +931,33 @@ IX_ScanIterator::~IX_ScanIterator()
 RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 {
     _indexManager = IndexManager::instance();
-    return -1;
+    /*
+    void *_pageData;
+
+    unsigned currPage;
+    unsigned currNumEntries;
+
+    unsigned totalPage;
+
+    void* currKey;
+    RID currRid;
+
+    Attribute attr;
+    IXFileHandle ixfileHandle;
+
+    const void *lowKey;
+    const void *highKey;
+    bool lowKeyInclusive;
+    bool highKeyInclusive;
+    */
+
+    // you've read the current page in
+    // now you need to get the next entry on the page
+
+
+
+
+    return SUCCESS;
 }
 
 RC IX_ScanIterator::close()
@@ -943,6 +969,7 @@ RC IX_ScanIterator::close()
 RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, const void*lK, const void *hK, bool lKI, bool hKI) {
     
     // Start at root page
+    currOffset = sizeof(InternalPageHeader);
     currPage = _indexManager->getRootPageNum(ixfileHandle);
     totalPage = ixFh.getNumberOfPages();
 
@@ -960,6 +987,18 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
     highKey = hK;
     lowKeyInclusive = lKI;
     highKeyInclusive = hKI;
+
+    // read in the page
+    if (totalPage > 0) {
+        if (ixfileHandle.readPage(currPage, _pageData)) {
+            RBFM_READ_FAILED;
+        }
+    } else return SUCCESS;
+
+    InternalPageHeader internalPageHeader = _indexManager->getInternalPageHeader(_pageData);
+    currNumEntries = internalPageHeader.numEntries;
+
+    // something with the lowkey highkey??
 
     return SUCCESS;
 }

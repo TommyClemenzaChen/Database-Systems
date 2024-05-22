@@ -216,7 +216,10 @@ class IX_ScanIterator {
         IndexManager *_indexManager;
         void *_pageData;
 
+        unsigned currOffset;
         unsigned currPage;
+        unsigned currNumEntries;
+
         unsigned totalPage;
 
         void* currKey;
