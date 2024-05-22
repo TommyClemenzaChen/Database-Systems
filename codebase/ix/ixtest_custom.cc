@@ -83,6 +83,9 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
 
     PageNum pageNum = 2;
 
+    unsigned rootPageNum = indexManager->getRootPageNum(ixfileHandle);
+    cout << "TEST: rootNum = " << rootPageNum << endl;
+
     int stringLength = 5;
     const char* word = "Hello";
 
@@ -121,6 +124,9 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
     memcpy(data, &internalPageHeader, sizeof(internalPageHeader));
 
     indexManager->splitInternalPage(data, 1, ixfileHandle, attribute, trafficPair);
+
+    rootPageNum = indexManager->getRootPageNum(ixfileHandle);
+    cout << "TEST: rootNum = " << rootPageNum << endl;
 
     char *temp = (char*)malloc(5+1);
     memcpy(temp, (char*)trafficPair.key + sizeof(int), 9+sizeof(PageNum));
@@ -169,11 +175,10 @@ int main () {
 
     // populate the files
     
-    RC result = testSplitLeafPage(indexFileName, attrAge);
+    // RC result = testSplitLeafPage(indexFileName, attrAge);
 
-    
 
-    result = testSplitInternalPage(indexFileName, attrAge);
+    RC result = testSplitInternalPage(indexFileName, attrAge);
     
     if (result == success) {
         cerr << "Let's fucking go" << endl;

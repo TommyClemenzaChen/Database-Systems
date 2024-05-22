@@ -262,6 +262,43 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     trafficPair.key = middleKey;
     trafficPair.pageNum = ixFileHandle.getNumberOfPages(); //this is pageNum of newInternalData (split page)
 
+    // edge case: check if the page is a root
+    unsigned rootPageNum = getRootPageNum(ixFileHandle);
+    cout << "SPLIT: rootNum = " << rootPageNum << endl;
+    if (currPageNum == rootPageNum) {
+        void *newRootData = malloc(PAGE_SIZE);
+        newInternalPage(newRootData);
+        InternalPageHeader newInternalPageHeader = getInternalPageHeader(newRootData);
+        newInternalPageHeader.numEntries = 1; 
+        newInternalPageHeader.FSO = PAGE_SIZE - sizeof(InternalPageHeader) - keyLength - sizeof(PageNum);
+        setInternalPageHeader(newRootData, newInternalPageHeader);
+
+        unsigned newRootNum = ixFileHandle.getNumberOfPages(); // this might be getNumPages+1 (this could be causing errors elsewhere)
+
+        // Insert the traffic pair to the new root page
+        memcpy((char*)newRootData + sizeof(InternalPageHeader), trafficPair.key, keyLength);
+        memcpy((char*)newRootData + sizeof(InternalPageHeader) + keyLength, &trafficPair.pageNum, sizeof(PageNum));
+
+        // Get the meta data page
+        void *metaDataPage = malloc(PAGE_SIZE);
+        ixFileHandle.readPage(0, metaDataPage);
+        MetaPageHeader metaDataHeader = getMetaPageHeader(metaDataPage);
+        
+        // update MetaData header
+        metaDataHeader.rootNum = newRootNum;
+        setMetaPageHeader(metaDataPage, metaDataHeader);
+
+        cout << "new root num: " << newRootNum << endl;
+        // this update is not working UGH
+
+        ixFileHandle.appendPage(newRootData);
+        ixFileHandle.writePage(1, metaDataPage);
+        
+        // free memory
+        free(newRootData);
+        free(metaDataPage);
+    }
+
     free(middleKey);
     free(newInternalData);
     return SUCCESS;
