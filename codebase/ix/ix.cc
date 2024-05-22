@@ -793,7 +793,7 @@ RC IndexManager::scan(IXFileHandle &ixfileHandle,
         bool        	highKeyInclusive,
         IX_ScanIterator &ix_ScanIterator)
 {
-    return -1;
+    return ix_ScanIterator.scanInit(ixfileHandle, attribute, lowKey, highKey, lowKeyInclusive, highKeyInclusive);
 }
 
 void IndexManager::printKey(const Attribute &attribute, void *pageData, unsigned offset, unsigned &keyLength) const{
@@ -918,6 +918,7 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 }
 
 IX_ScanIterator::IX_ScanIterator()
+: currPage(0), currKey(0), totalPage(0)
 {
     _indexManager = IndexManager::instance();
 }
@@ -929,7 +930,7 @@ IX_ScanIterator::~IX_ScanIterator()
 
 RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 {
-    
+    _indexManager = IndexManager::instance();
     return -1;
 }
 
@@ -939,6 +940,29 @@ RC IX_ScanIterator::close()
     return SUCCESS;
 }
 
+RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, const void*lK, const void *hK, bool lKI, bool hKI) {
+    
+    // Start at root page
+    currPage = _indexManager->getRootPageNum(ixfileHandle);
+    totalPage = ixFh.getNumberOfPages();
+
+    currKey = NULL;
+    currRid.pageNum = 0;
+    currRid.slotNum = 0;
+
+    // Buffer to hold the current page
+    _pageData = malloc(PAGE_SIZE);
+
+    // Store the variables passed in
+    ixfileHandle = ixFh;
+    attr = attribute;
+    lowKey = lK;
+    highKey = hK;
+    lowKeyInclusive = lKI;
+    highKeyInclusive = hKI;
+
+    return SUCCESS;
+}
 
 IXFileHandle::IXFileHandle()
 {
@@ -1010,7 +1034,6 @@ RC IXFileHandle::appendPage(const void *data)
     }
     return FH_WRITE_FAILED;
 }
-
 
 unsigned IXFileHandle::getNumberOfPages()
 {

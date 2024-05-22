@@ -162,50 +162,6 @@ class IndexManager {
      
 };
 
-class IX_ScanIterator {
-    public:
-		// Constructor
-        IX_ScanIterator();
-
-        // Destructor
-        ~IX_ScanIterator();
-
-        // Get next matching entry
-        RC getNextEntry(RID &rid, void *key);
-
-        // Terminate index scan
-        RC close();
-
-        friend class IndexManager;
-    private:
-        IndexManager *_indexManager;
-        void *_pageData;
-
-        unsigned currPage;
-        unsigned totalPages;
-
-        void* currKey;
-        RID currRid;
-
-        Attribute attr;
-        IXFileHandle ixfileHandle;
-
-        const void *lowKey,
-        const void *highKey,
-        bool lowKeyInclusive,
-        bool highKeyInclusive,
-
-        RC scanInit(IXFileHandle &ixfileHandle,
-        const Attribute &attribute,
-        const void      *lowKey,
-        const void      *highKey,
-        bool			lowKeyInclusive,
-        bool        	highKeyInclusive);
-        
-        // some check condition functions
-
-};
-
 class IXFileHandle {
     public:
 
@@ -240,5 +196,51 @@ class IXFileHandle {
     FILE* getfd();
 
 };
+
+class IX_ScanIterator {
+    public:
+		// Constructor
+        IX_ScanIterator();
+
+        // Destructor
+        ~IX_ScanIterator();
+
+        // Get next matching entry
+        RC getNextEntry(RID &rid, void *key);
+
+        // Terminate index scan
+        RC close();
+
+        friend class IndexManager;
+    private:
+        IndexManager *_indexManager;
+        void *_pageData;
+
+        unsigned currPage;
+        unsigned totalPage;
+
+        void* currKey;
+        RID currRid;
+
+        Attribute attr;
+        IXFileHandle ixfileHandle;
+
+        const void *lowKey;
+        const void *highKey;
+        bool lowKeyInclusive;
+        bool highKeyInclusive;
+
+        RC scanInit(IXFileHandle &ixfileHandle,
+        const Attribute &attribute,
+        const void      *lowKey,
+        const void      *highKey,
+        bool			lowKeyInclusive,
+        bool        	highKeyInclusive);
+        
+        // some check condition functions
+
+};
+
+
 
 #endif
