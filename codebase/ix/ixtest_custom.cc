@@ -12,8 +12,6 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
     indexManager->createFile(indexFileName);
     indexManager->openFile(indexFileName, ixfileHandle);
     
-    cout << "[Test] Num pages at init: " << ixfileHandle.getNumberOfPages() << endl;
-
     // initialize empty traffic pair
     TrafficPair trafficPair;
     trafficPair.key = NULL;
@@ -32,8 +30,6 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
     ixfileHandle.appendPage(data);
 
     LeafPageHeader leafPageHeader = indexManager->getLeafPageHeader(data);
-
-    cout << "[Test] Leaf num entries before loop: " << leafPageHeader.numEntries << endl;
 
     unsigned offset = sizeof(LeafPageHeader);
     
@@ -62,22 +58,11 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
     // Update the leaf page header
     memcpy(data, &leafPageHeader, sizeof(LeafPageHeader));
 
-    // // Optionally write the modified page back to the file
-    // ixfileHandle.writePage(0, data);
-
-    cout << "[Test] Num entries after loop: " << leafPageHeader.numEntries << endl;
-
-    cout << "Num pages before: " << ixfileHandle.getNumberOfPages() << endl;
-
     indexManager->splitLeafPage(data, 3, ixfileHandle, attribute, trafficPair);
-
-    cout << "Num pages after: " << ixfileHandle.getNumberOfPages() << endl;
 
     char *temp = (char*)malloc(10);
     memcpy(temp, (char*)trafficPair.key + sizeof(int), 9);
     temp[9] = '\0';
-
-    cout << endl << "Traffic pair key: " << temp << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
 
     free(data);
     return SUCCESS;
@@ -108,8 +93,6 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
     
     InternalPageHeader internalPageHeader = indexManager->getInternalPageHeader(data);
 
-    cout << "[Test] Leaf num entries before loop: " << internalPageHeader.numEntries << endl;
-
     unsigned offset = sizeof(internalPageHeader);
     
     while (true) {
@@ -134,11 +117,8 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
         internalPageHeader.FSO += offset;
     }
 
-    cout << "[Test] Offset: " << offset << endl;
     // Update the leaf page header
     memcpy(data, &internalPageHeader, sizeof(internalPageHeader));
-
-    cout << "[Test] Num entries after loop: " << internalPageHeader.numEntries << endl;
 
     indexManager->splitInternalPage(data, 1, ixfileHandle, attribute, trafficPair);
 
@@ -148,7 +128,6 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
 
     cout << endl << "Traffic pair key: " << temp << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
 
-    // free(data);
     free(temp);
     return SUCCESS;
 }
@@ -188,18 +167,14 @@ int main () {
 
     // testCompareKeys(indexManager);
 
-    cout << "--------------------------------------------------------------------------" << endl;
-
-    //populate the files
+    // populate the files
     
     RC result = testSplitLeafPage(indexFileName, attrAge);
 
-    cout << "--------------------------------------------------------------------------" << endl;
+    
 
     result = testSplitInternalPage(indexFileName, attrAge);
     
-    cout << "--------------------------------------------------------------------------" << endl;
-    // cout << result << endl;
     if (result == success) {
         cerr << "Let's fucking go" << endl;
         return success;
