@@ -9,6 +9,7 @@
 #include <cstring>
 #include <climits>
 
+
 #include "../rbf/rbfm.h"
 
 using namespace std;
@@ -21,6 +22,7 @@ class IXFileHandle;
 typedef enum {
     NO_SPACE = 1,
     DUPLICATE = 2, 
+    SPLIT_ERROR = 3,
 
     
 } ERROR_CODES;
@@ -92,9 +94,9 @@ class IndexManager {
 
         unsigned getKeyStringLength(void *data);
 
-        int compareKeys(Attribute attr, const void *key1, const void *key2);
+        int compareKeys(Attribute attr, const void *key1, const void *key2) const;
 
-        bool compareRIDS(const RID &rid1, const RID &rid2);
+        bool compareRIDS(const RID &rid1, const RID &rid2) const;
 
         bool leafPairExists(void *pageData, const void *key, const RID &rid, const Attribute &attr);
         
@@ -112,21 +114,19 @@ class IndexManager {
 
         void setLeafPageHeader(void *page, LeafPageHeader LeafPageHeader);
 
-        InternalPageHeader getInternalPageHeader(void *page);
+        InternalPageHeader getInternalPageHeader(void *page) const;
 
-        MetaPageHeader getMetaPageHeader(void *page);
+        MetaPageHeader getMetaPageHeader(void *page) const;
 
-        LeafPageHeader getLeafPageHeader(void *page);
+        LeafPageHeader getLeafPageHeader(void *page) const;
 
-        unsigned getRootPageNum(IXFileHandle ixfileHandle);
+        unsigned getRootPageNum(IXFileHandle &ixfileHandle) const;
 
-        unsigned getChildPageNum(const void *key, void *pageData, Attribute attr);
+        unsigned getChildPageNum(const void *key, void *pageData, Attribute attr) const;
 
-        bool isLeafPage(void *page);
+        Flag getFlag(void *page) const;
 
-        bool isInternalPage(void *page);
-
-        unsigned getKeyLength(const void *key, const Attribute attr);
+        unsigned getKeyLength(const void *key, const Attribute attr) const;
 
         RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair);
 
@@ -141,23 +141,29 @@ class IndexManager {
                 bool highKeyInclusive,
                 IX_ScanIterator &ix_ScanIterator);
 
-        // Print the B+ tree in pre-order (in a JSON record format)
-        void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
+        void printKey(const Attribute &attribute, void *pageData, unsigned offset, unsigned &keyLength) const;
 
+        void printRID(void *pageData, unsigned offset) const;
+
+        // Print the B+ tree in pre-order (in a JSON record format)
+        void preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, unsigned &keyLength) const;
+        void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
+        void printLeafPageHeader(LeafPageHeader leafPageHeader);
+        void printInternalPageHeader(InternalPageHeader internalPageHeader);
+    
     protected:
         IndexManager();
         ~IndexManager();
 
+        
 
     private:
         static IndexManager *_index_manager;
      
 };
 
-
 class IX_ScanIterator {
     public:
-
 		// Constructor
         IX_ScanIterator();
 
@@ -169,9 +175,17 @@ class IX_ScanIterator {
 
         // Terminate index scan
         RC close();
+
+        friend class IndexManager;
+    private:
+        IndexManager *_indexManager;
+        void *_pageData;
+
+        unsigned currPage;
+        void* currKey;
+        Attribute attr;
+        unsigned totalPages;
 };
-
-
 
 class IXFileHandle {
     public:
