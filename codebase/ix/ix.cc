@@ -260,8 +260,6 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     trafficPair.key = middleKey;
     trafficPair.pageNum = ixFileHandle.getNumberOfPages(); //this is pageNum of newInternalData (split page)
 
-    cout << "TEST: KeyLength: " << keyLength << endl;
-
     // edge case: check if the page is a root
     unsigned rootPageNum = getRootPageNum(ixFileHandle);
     if (currPageNum == rootPageNum) {
@@ -294,12 +292,11 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
         ixFileHandle.writePage(0, metaDataPage);
 
         // free memory
-        free(newRootData);
-        free(metaDataPage);
+        // free(newRootData);
+        // free(metaDataPage);
     }
 
-    // free(middleKey);
-    free(newInternalData);
+    // free(newInternalData);
     return SUCCESS;
 }
 

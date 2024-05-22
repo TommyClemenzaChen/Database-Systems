@@ -80,13 +80,7 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
     TrafficPair trafficPair;
     trafficPair.key = NULL;
     trafficPair.pageNum = 0;
-
     
-    cout << ixfileHandle.getNumberOfPages() << endl;
-    
-    unsigned rootPageNum = indexManager->getRootPageNum(ixfileHandle);
-    cout << "TEST: rootNum = " << rootPageNum << endl;
-
     // initialize varchar
     int stringLength = 5;
     const char* word = "Hello";
@@ -132,17 +126,14 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
     indexManager->splitInternalPage(data, 1, ixfileHandle, attribute, trafficPair);
 
     rootPageNum = indexManager->getRootPageNum(ixfileHandle);
-    cout << "TEST: rootNum = " << rootPageNum << endl;
 
     unsigned keyLength = indexManager->getKeyLength(trafficPair.key, attribute);
-    cout << "TEST: KeyLength: " << keyLength << endl;
     char *temp = (char*)malloc(keyLength + 1);
     memcpy(temp, (char*)trafficPair.key+sizeof(int), keyLength+sizeof(PageNum));
     temp[keyLength] = '\0';
     
     cout << endl << "TEST: Traffic pair key: " << temp << endl << "TEST: Traffic pair pageNum: " << trafficPair.pageNum << endl;
 
-    cout << "TEST: Total # Pages at end: " << ixfileHandle.getNumberOfPages() << endl;
 
     free(temp);
     return SUCCESS;
