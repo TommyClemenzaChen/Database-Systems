@@ -256,19 +256,7 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     trafficPair.key = middleKey;
     trafficPair.pageNum = ixFileHandle.getNumberOfPages(); //this is pageNum of newInternalData (split page)
 
-    // PRINT THE FIRST KEY IN THE NEW INTERNAL PAGE
-    unsigned newInternalKeySize = getKeyLength((char*)newInternalData + sizeof(InternalPageHeader), attr);
-    cout << "[Test] New internal key size: " << newInternalKeySize << endl;
-    char *temp = (char*)malloc(newInternalKeySize + 1);
-    memcpy(temp, (char*)newInternalData + sizeof(InternalPageHeader)+sizeof(int), newInternalKeySize+sizeof(PageNum));
-    temp[newInternalKeySize] = '\0';
-
-    cout << endl << "First key in new internal: " << temp << endl << endl;;
-
-    cout << "Old internalPageHeader FSO: " << currInternalPageHeader.FSO << endl;
-    cout << "Middle key length: " << keyLength + sizeof(PageNum) << endl;  
-    cout << "New internalpageheader FSO: " << newInternalPageHeader.FSO << endl;
-
+    free(middleKey);
     return SUCCESS;
 }
 
