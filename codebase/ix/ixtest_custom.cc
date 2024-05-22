@@ -116,51 +116,6 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
     
     while (true) {
         // Check if there is enough space to insert the key and RID
-        if (offset + sizeof(int) + stringLength + sizeof(pageNum) > PAGE_SIZE/2) {
-            break;
-        }
-        // Copy the string length
-        memcpy((char *)data + offset, &stringLength, sizeof(int));
-        offset += sizeof(int);
-
-        // Copy the string data
-        memcpy((char *)data + offset, word, stringLength);
-        offset += stringLength;
-
-        // Copy the PageNum
-        memcpy((char *)data + offset, &pageNum, sizeof(PageNum));
-        offset += sizeof(PageNum);
-
-        // Update the number of entries and free space offset in the header
-        internalPageHeader.numEntries += 1;
-        internalPageHeader.FSO = offset;
-    }
-
-    int len = 8;
-    const char* word2 = "ljquirog";
-
-    for (int i = 0; i < 2; i++) {
-        // Copy the string length
-        memcpy((char *)data + offset, &len, sizeof(int));
-        offset += sizeof(int);
-
-        // Copy the string data
-        memcpy((char *)data + offset, word2, len);
-        offset += len;
-
-        // Copy the PageNum
-        memcpy((char *)data + offset, &pageNum, sizeof(PageNum));
-        offset += sizeof(PageNum);
-
-        // Update the number of entries and free space offset in the header
-        internalPageHeader.numEntries += 1;
-        internalPageHeader.FSO = offset;
-    }
-
-    stringLength = 3;
-    word = "Hai";
-
-    while (true) {
         if (offset + sizeof(int) + stringLength + sizeof(pageNum) > PAGE_SIZE) {
             break;
         }
@@ -178,9 +133,10 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
 
         // Update the number of entries and free space offset in the header
         internalPageHeader.numEntries += 1;
-        internalPageHeader.FSO = offset;
+        internalPageHeader.FSO += offset;
     }
-    
+
+    cout << "[Test] Offset: " << offset << endl;
     // Update the leaf page header
     memcpy(data, &internalPageHeader, sizeof(internalPageHeader));
 

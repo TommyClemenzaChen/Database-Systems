@@ -220,21 +220,21 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
         currNumEntries++;
     }
 
-    void *newInternalData = malloc(PAGE_SIZE);
-    newInternalPage(newInternalData);
-    InternalPageHeader newInternalPageHeader = getInternalPageHeader(newInternalData);
-    newInternalPageHeader.numEntries = currInternalPageHeader.numEntries - currNumEntries;
-    setInternalPageHeader(newInternalData, newInternalPageHeader);
-
     // Get middle entry and pass it as a traffic cop
     unsigned keyLength = getKeyLength((char*)currInternalData+offset, attr);
-    
     void *middleKey = malloc(keyLength + sizeof(PageNum));
     
     memcpy(middleKey, (char*)currInternalData + offset, keyLength);
+    
+    void *newInternalData = malloc(PAGE_SIZE);
+    newInternalPage(newInternalData);
+    InternalPageHeader newInternalPageHeader = getInternalPageHeader(newInternalData);
+    newInternalPageHeader.numEntries = currInternalPageHeader.numEntries - currNumEntries - 1; // -1 so you subtract the middle key entry
+    newInternalPageHeader.FSO = PAGE_SIZE - offset - keyLength - sizeof(PageNum);
+    setInternalPageHeader(newInternalData, newInternalPageHeader);
 
     // Split all the data that comes after offset and middle key into newInternalData
-    memcpy((char*)newInternalData + newInternalPageHeader.FSO, (char*)currInternalData + offset + keyLength, PAGE_SIZE - offset);
+    memcpy((char*)newInternalData + newInternalPageHeader.FSO, (char*)currInternalData + offset + keyLength + sizeof(PageNum), PAGE_SIZE - offset - keyLength - sizeof(PageNum));
     
     ixFileHandle.appendPage(newInternalData);
     
@@ -244,7 +244,7 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     setInternalPageHeader(currInternalData, currInternalPageHeader);
         
     // remove everything after offset and middle key from currLeafData
-    memset((char*)currInternalData+offset+keyLength, 0, PAGE_SIZE - offset); 
+    memset((char*)currInternalData+offset+keyLength+sizeof(PageNum), 0, PAGE_SIZE - offset); 
 
     ixFileHandle.writePage(currPageNum, currInternalData);
 
@@ -252,11 +252,16 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     trafficPair.pageNum = ixFileHandle.getNumberOfPages(); //this is pageNum of newInternalData (split page)
 
     // PRINT THE FIRST KEY IN THE NEW INTERNAL PAGE
-    int newInternalKeySize = getKeyLength((char*)newInternalData+sizeof(InternalPageHeader), attr);
-    char *temp = (char*)malloc(newInternalKeySize+1);
-    memcpy(temp, (char*)newInternalData+sizeof(InternalPageHeader)+sizeof(int), newInternalKeySize+sizeof(PageNum));
+    unsigned newInternalKeySize = getKeyLength((char*)newInternalData + sizeof(InternalPageHeader), attr);
+    cout << "[Test] New internal key size: " << newInternalKeySize << endl;
+    char *temp = (char*)malloc(newInternalKeySize + 1);
+    memcpy(temp, (char*)newInternalData + sizeof(InternalPageHeader)+sizeof(int), newInternalKeySize+sizeof(PageNum));
     temp[newInternalKeySize] = '\0';
     cout << "First key in new internal: " << temp << endl;
+
+    cout << "Old internalPageHeader FSO: " << currInternalPageHeader.FSO << endl;
+    cout << "Middle key length: " << keyLength + sizeof(PageNum) << endl;  
+    cout << "New internalpageheader FSO: " << newInternalPageHeader.FSO << endl;
 
     return SUCCESS;
 }
