@@ -81,13 +81,18 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
     trafficPair.key = NULL;
     trafficPair.pageNum = 0;
 
-    PageNum pageNum = 2;
-
+    
+    cout << ixfileHandle.getNumberOfPages() << endl;
+    
     unsigned rootPageNum = indexManager->getRootPageNum(ixfileHandle);
     cout << "TEST: rootNum = " << rootPageNum << endl;
 
+    // initialize varchar
     int stringLength = 5;
     const char* word = "Hello";
+
+    // initialize PageNum
+    PageNum pageNum = 2;
 
     void *data = malloc(PAGE_SIZE);
     ixfileHandle.readPage(1, data);
@@ -123,16 +128,21 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
     // Update the leaf page header
     memcpy(data, &internalPageHeader, sizeof(internalPageHeader));
 
+    
     indexManager->splitInternalPage(data, 1, ixfileHandle, attribute, trafficPair);
 
     rootPageNum = indexManager->getRootPageNum(ixfileHandle);
     cout << "TEST: rootNum = " << rootPageNum << endl;
 
-    char *temp = (char*)malloc(5+1);
-    memcpy(temp, (char*)trafficPair.key + sizeof(int), 9+sizeof(PageNum));
-    temp[5] = '\0';
+    unsigned keyLength = indexManager->getKeyLength(trafficPair.key, attribute);
+    cout << "TEST: KeyLength: " << keyLength << endl;
+    char *temp = (char*)malloc(keyLength + 1);
+    memcpy(temp, (char*)trafficPair.key+sizeof(int), keyLength+sizeof(PageNum));
+    temp[keyLength] = '\0';
+    
+    cout << endl << "TEST: Traffic pair key: " << temp << endl << "TEST: Traffic pair pageNum: " << trafficPair.pageNum << endl;
 
-    cout << endl << "Traffic pair key: " << temp << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
+    cout << "TEST: Total # Pages at end: " << ixfileHandle.getNumberOfPages() << endl;
 
     free(temp);
     return SUCCESS;
@@ -176,7 +186,6 @@ int main () {
     // populate the files
     
     // RC result = testSplitLeafPage(indexFileName, attrAge);
-
 
     RC result = testSplitInternalPage(indexFileName, attrAge);
     

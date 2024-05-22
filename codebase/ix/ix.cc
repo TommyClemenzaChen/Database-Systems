@@ -228,10 +228,8 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     }
 
     // Get middle entry and pass it as a traffic cop
-    unsigned keyLength = getKeyLength((char*)currInternalData+offset, attr);
-    
+    unsigned keyLength = getKeyLength((char*)currInternalData+offset, attr);    
     void *middleKey = malloc(keyLength + sizeof(PageNum));
-    
     memcpy(middleKey, (char*)currInternalData + offset, keyLength);
 
     // Split all the data that comes after offset and middle key into newInternalData
@@ -262,9 +260,10 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     trafficPair.key = middleKey;
     trafficPair.pageNum = ixFileHandle.getNumberOfPages(); //this is pageNum of newInternalData (split page)
 
+    cout << "TEST: KeyLength: " << keyLength << endl;
+
     // edge case: check if the page is a root
     unsigned rootPageNum = getRootPageNum(ixFileHandle);
-    cout << "SPLIT: rootNum = " << rootPageNum << endl;
     if (currPageNum == rootPageNum) {
         void *newRootData = malloc(PAGE_SIZE);
         newInternalPage(newRootData);
@@ -272,6 +271,7 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
         newInternalPageHeader.numEntries = 1; 
         newInternalPageHeader.FSO = PAGE_SIZE - sizeof(InternalPageHeader) - keyLength - sizeof(PageNum);
         setInternalPageHeader(newRootData, newInternalPageHeader);
+        ixFileHandle.appendPage(newRootData);
 
         unsigned newRootNum = ixFileHandle.getNumberOfPages(); // this might be getNumPages+1 (this could be causing errors elsewhere)
 
@@ -279,27 +279,26 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
         memcpy((char*)newRootData + sizeof(InternalPageHeader), trafficPair.key, keyLength);
         memcpy((char*)newRootData + sizeof(InternalPageHeader) + keyLength, &trafficPair.pageNum, sizeof(PageNum));
 
+        // Write changes to page
+        ixFileHandle.writePage(newRootNum, newRootData);
+
         // Get the meta data page
         void *metaDataPage = malloc(PAGE_SIZE);
         ixFileHandle.readPage(0, metaDataPage);
         MetaPageHeader metaDataHeader = getMetaPageHeader(metaDataPage);
-        
+
         // update MetaData header
         metaDataHeader.rootNum = newRootNum;
         setMetaPageHeader(metaDataPage, metaDataHeader);
 
-        cout << "new root num: " << newRootNum << endl;
-        // this update is not working UGH
+        ixFileHandle.writePage(0, metaDataPage);
 
-        ixFileHandle.appendPage(newRootData);
-        ixFileHandle.writePage(1, metaDataPage);
-        
         // free memory
         free(newRootData);
         free(metaDataPage);
     }
 
-    free(middleKey);
+    // free(middleKey);
     free(newInternalData);
     return SUCCESS;
 }
