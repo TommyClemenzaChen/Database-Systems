@@ -91,8 +91,6 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
     indexManager->createFile(indexFileName);
     indexManager->openFile(indexFileName, ixfileHandle);
     
-    cout << "[Test] Num pages at init: " << ixfileHandle.getNumberOfPages() << endl;
-
     // initialize empty traffic pair
     TrafficPair trafficPair;
     trafficPair.key = NULL;
@@ -142,13 +140,11 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
 
     cout << "[Test] Num entries after loop: " << internalPageHeader.numEntries << endl;
 
-    cout << "[Test] Num pages before: " << ixfileHandle.getNumberOfPages() << endl;
-
     indexManager->splitInternalPage(data, 1, ixfileHandle, attribute, trafficPair);
 
-    char *temp = (char*)malloc((8+sizeof(PageNum))+1);
-    memcpy(temp, (char*)trafficPair.key + sizeof(int), 8+sizeof(PageNum));
-    temp[8] = '\0';
+    char *temp = (char*)malloc(5+1);
+    memcpy(temp, (char*)trafficPair.key + sizeof(int), 9+sizeof(PageNum));
+    temp[5] = '\0';
 
     cout << endl << "Traffic pair key: " << temp << endl << "Traffic pair pageNum: " << trafficPair.pageNum << endl;
 

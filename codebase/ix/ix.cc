@@ -222,10 +222,15 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
 
     // Get middle entry and pass it as a traffic cop
     unsigned keyLength = getKeyLength((char*)currInternalData+offset, attr);
+    
     void *middleKey = malloc(keyLength + sizeof(PageNum));
     
     memcpy(middleKey, (char*)currInternalData + offset, keyLength);
+
+    // Split all the data that comes after offset and middle key into newInternalData
+    unsigned splitOffset = offset + keyLength + sizeof(PageNum);
     
+    // initialize new Internal Page
     void *newInternalData = malloc(PAGE_SIZE);
     newInternalPage(newInternalData);
     InternalPageHeader newInternalPageHeader = getInternalPageHeader(newInternalData);
@@ -233,8 +238,8 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     newInternalPageHeader.FSO = PAGE_SIZE - offset - keyLength - sizeof(PageNum);
     setInternalPageHeader(newInternalData, newInternalPageHeader);
 
-    // Split all the data that comes after offset and middle key into newInternalData
-    memcpy((char*)newInternalData + newInternalPageHeader.FSO, (char*)currInternalData + offset + keyLength + sizeof(PageNum), PAGE_SIZE - offset - keyLength - sizeof(PageNum));
+    cout << "[Split] New internal FSO: " << newInternalPageHeader.FSO << endl;
+    memcpy((char*)newInternalData + sizeof(InternalPageHeader), (char*)currInternalData + splitOffset, PAGE_SIZE - splitOffset);
     
     ixFileHandle.appendPage(newInternalData);
     
@@ -257,7 +262,8 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
     char *temp = (char*)malloc(newInternalKeySize + 1);
     memcpy(temp, (char*)newInternalData + sizeof(InternalPageHeader)+sizeof(int), newInternalKeySize+sizeof(PageNum));
     temp[newInternalKeySize] = '\0';
-    cout << "First key in new internal: " << temp << endl;
+
+    cout << endl << "First key in new internal: " << temp << endl << endl;;
 
     cout << "Old internalPageHeader FSO: " << currInternalPageHeader.FSO << endl;
     cout << "Middle key length: " << keyLength + sizeof(PageNum) << endl;  
