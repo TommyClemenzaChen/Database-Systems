@@ -283,7 +283,7 @@ RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum
         newInternalPage(newRootData);
         InternalPageHeader newInternalPageHeader = getInternalPageHeader(newRootData);
         newInternalPageHeader.numEntries = 1; 
-        newInternalPageHeader.FSO = PAGE_SIZE - sizeof(InternalPageHeader) - keyLength - sizeof(PageNum);
+        newInternalPageHeader.FSO = keyLength + sizeof(PageNum) + sizeof(InternalPageHeader);
         setInternalPageHeader(newRootData, newInternalPageHeader);
         ixFileHandle.appendPage(newRootData);
 
@@ -385,7 +385,6 @@ bool IndexManager::compareRIDS(const RID &rid1, const RID &rid2) const {
     if (rid1.pageNum == rid2.pageNum && rid1.slotNum == rid2.slotNum) {
         return true;
     }
-
     return false;
 }
 
@@ -525,16 +524,18 @@ RC IndexManager::closeFile(IXFileHandle &ixfileHandle)
 }
 
 RC IndexManager::insertInternalPair(void *pageData, const Attribute &attr, const void *key, const PageNum pageNum) {
-    //we don't want duplicates (should never get here)
+        //we don't want duplicates (should never get here)
     if (trafficPairExists(pageData, key, pageNum, attr)) {
         return DUPLICATE;
     }
     
     InternalPageHeader internalPageHeader = getInternalPageHeader(pageData);
+
+    printInternalPageHeader(internalPageHeader);
     //at this point, trafficPair shouldn't have null fields
-    unsigned keyLength = getKeyLength(key, attr);
-    
-    if (PAGE_SIZE - internalPageHeader.FSO < keyLength + sizeof(PageNum)) {
+
+
+    if (PAGE_SIZE - internalPageHeader.FSO < getKeyLength(key, attr) + sizeof(PageNum)) {
         return NO_SPACE;
     }
 
@@ -544,20 +545,23 @@ RC IndexManager::insertInternalPair(void *pageData, const Attribute &attr, const
         if (compareKeys(attr, key, (char*)pageData + offset) < 0) {
             break;
         }
-        offset += keyLength + sizeof(PageNum);
+        offset += getKeyLength((char*)pageData + offset, attr) + sizeof(PageNum);
     }
 
     //for entires that come after, shift to the right
-    memcpy((char*)pageData + keyLength + sizeof(PageNum), (char*)pageData + offset, internalPageHeader.FSO - offset);
+    unsigned shiftOffset = offset + getKeyLength((char*)pageData + offset, attr) + sizeof(PageNum);
+    memcpy((char*)pageData + shiftOffset, (char*)pageData + offset, internalPageHeader.FSO - offset);
     
     //insert the new trafficPair
-    memcpy((char*)pageData + offset, key, keyLength);
-    memcpy((char*)pageData + offset + keyLength, &pageNum, sizeof(PageNum));
+    memcpy((char*)pageData + offset, key, getKeyLength(key, attr));
+    memcpy((char*)pageData + offset + getKeyLength(key, attr), &pageNum, sizeof(PageNum));
 
-    internalPageHeader.FSO -= keyLength + sizeof(PageNum);
+    internalPageHeader.FSO += getKeyLength(key, attr) + sizeof(PageNum);
     internalPageHeader.numEntries += 1;
 
     setInternalPageHeader(pageData, internalPageHeader);
+
+    return SUCCESS;
 
     return SUCCESS;
 }
@@ -781,7 +785,8 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
         }
     }
     free(internalKey); // Free allocated memory
-    free(data); // Free allocated memory */
+    free(data); // Free allocated memory
+    */
     return SUCCESS;
 }
 
@@ -953,7 +958,6 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
     // you've read the current page in
     // now you need to get the next entry on the page
-
 
 
 
