@@ -1,6 +1,7 @@
 #ifndef _ix_h_
 #define _ix_h_
 
+#include <iostream>
 #include <vector>
 #include <string>
 #include <sys/stat.h>
@@ -144,7 +145,7 @@ class IndexManager {
 
         void printKey(const Attribute &attribute, void *pageData, unsigned offset) const;
 
-        void printRID(void *pageData, unsigned offset) const;
+        void printRID(const Attribute &attribute, void *pageData, unsigned &offset) const;
 
         // Print the B+ tree in pre-order (in a JSON record format)
         void preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, int depth) const;
@@ -215,11 +216,14 @@ class IX_ScanIterator {
         friend class IndexManager;
     private:
         IndexManager *_indexManager;
+        
         void *_pageData;
 
         unsigned currOffset;
         unsigned currPage;
-        unsigned currNumEntries;
+        unsigned totalNumEntries;
+
+        unsigned currEntry;
 
         unsigned totalPage;
 
@@ -234,15 +238,19 @@ class IX_ScanIterator {
         bool lowKeyInclusive;
         bool highKeyInclusive;
 
+        LeafPageHeader leafPageHeader;
+
         RC scanInit(IXFileHandle &ixfileHandle,
         const Attribute &attribute,
         const void      *lowKey,
         const void      *highKey,
         bool			lowKeyInclusive,
         bool        	highKeyInclusive);
-        
-        // some check condition functions
 
+        // some check condition functions
+        unsigned getLowKeyPage();
+        unsigned getFirstLeafPage();
+        unsigned searchLeaf(void* key);
 };
 
 
