@@ -23,7 +23,7 @@ typedef enum {
     NO_SPACE = 1,
     DUPLICATE = 2, 
     SPLIT_ERROR = 3,
-
+    KEY_NOT_FOUND = 4,
     
 } ERROR_CODES;
 

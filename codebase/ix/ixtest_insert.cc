@@ -6,6 +6,7 @@
 IndexManager *indexManager;
 
 int main () {
+    cout << "-------------------------------------------------------------------------" << endl;
     indexManager = IndexManager::instance();
     
     const string indexFileName = "age_idx";
@@ -58,6 +59,18 @@ int main () {
 
     indexManager->printBtree(ixfileHandle, attr);
 
+    cout << "-------------------------------------------------------------------------" << endl;
+    
+    // delete entry
+    result = indexManager->deleteEntry(ixfileHandle, attr, &key, rid);
+
+    ixfileHandle.readPage(rootNum, pageData);
+    internalPageHeader = indexManager->getInternalPageHeader(pageData);
+
+    cout << "Num entries after: " << internalPageHeader.numEntries << endl;
+    cout << "FSO after: " << internalPageHeader.FSO << endl;
+
+    cout << "-------------------------------------------------------------------------" << endl;
 
     if (result == success) {
         cerr << "Let's fucking go" << endl;

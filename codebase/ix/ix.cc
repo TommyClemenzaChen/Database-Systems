@@ -710,28 +710,28 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 
 // when i wrote this code only god and i knew how it worked. now, only god knows.
 RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid)
-{/*
-    unsigned j = getRootNum(ixfileHandle);
-    
+{
+    unsigned j = getRootPageNum(ixfileHandle);
+    unsigned offset = 0;
     void* data = malloc(PAGE_SIZE);
     
     void* internalKey;
     unsigned prevPageNum = UINT_MAX;
     
     while (true) {
-        readPage(j, data); // read in the root page
+        ixfileHandle.readPage(j, data); // read in the root page
         if (getFlag(data) == INTERNAL) {
             InternalPageHeader internalPageHeader = getInternalPageHeader(data);
             offset += sizeof(InternalPageHeader);
             while (true) {
                 // get the key at the next entry
-                memcpy(&internalKey, (char*)data+offset, getKeyLength(attribute, key));
+                memcpy(&internalKey, (char*)data+offset, getKeyLength(key, attribute));
                 if (compareKeys(attribute, internalKey, key) <= 0) {
                     // since we found less than or equal to the key, we need to fetch the corresponding pageNum
                     unsigned keyPageNum;
-                    memcpy(&keyPageNum, (char*)data+offset+getKeyLength(attribute, key), sizeof(int));
+                    memcpy(&keyPageNum, (char*)data+offset+getKeyLength(key, attribute), sizeof(int));
                     prevPageNum = keyPageNum; // set the prevPageNum to the one that's less than or equal to 
-                    offset += getKeyLength(attribute, key) + sizeof(PageNum);
+                    offset += getKeyLength(key, attribute) + sizeof(PageNum);
                 }
                 else {
                     // since the only entries in the page are greater than the key, the key must not exist
@@ -752,17 +752,17 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
             // index through all the entries in the page until you find a match
             while (true) {
                 // get the key at the next entry
-                memcpy(&internalKey, (char*)data+offset, getKeyLength(attribute, key));
+                memcpy(&internalKey, (char*)data+offset, getKeyLength(key, attribute));
                 if (compareKeys(attribute, internalKey, key) == 0) {
                     // key found! yay! now we delete
-                    unsigned entrySize = getKeyLength(attribute, key) + sizeof(RID);
+                    unsigned entrySize = getKeyLength(key, attribute) + sizeof(RID);
 
                     // Move subsequent entries up to fill the gap
                     memmove((char*)data + offset, (char*)data + offset + entrySize, PAGE_SIZE - offset - entrySize);
 
                     // Update the leaf page header
                     leafPageHeader.numEntries--;
-                    leafPageHeader.freeSpaceOffset -= entrySize;
+                    leafPageHeader.FSO -= entrySize;
 
                     // Write the updated header back to the data
                     memcpy(data, &leafPageHeader, sizeof(LeafPageHeader));
@@ -771,22 +771,22 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
                     ixfileHandle.writePage(j, data);
 
                     free(internalKey); // Free allocated memory
-                    free(data); // Free allocated memory
+                    // free(data); // Free allocated memory
                     return SUCCESS;
                 }
                 else if (compareKeys(attribute, internalKey, key) > 0) {
                     free(internalKey); // Free allocated memory
-                    free(data); // Free allocated memory
+                    // free(data); // Free allocated memory
                     return KEY_NOT_FOUND; // could also use recordExists() at the beginning of the else if {}
                 } else {
-                    offset += getKeyLength(attribute, key) + sizeof(RID);
+                    offset += getKeyLength(key, attribute) + sizeof(RID);
                 }
             }
         }
     }
     free(internalKey); // Free allocated memory
     free(data); // Free allocated memory
-    */
+
     return SUCCESS;
 }
 
@@ -971,7 +971,7 @@ RC IX_ScanIterator::close()
 }
 
 RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, const void*lK, const void *hK, bool lKI, bool hKI) {
-    
+    /*
     // Start at root page
     currOffset = sizeof(InternalPageHeader);
     currPage = _indexManager->getRootPageNum(ixfileHandle);
@@ -1001,7 +1001,7 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
 
     InternalPageHeader internalPageHeader = _indexManager->getInternalPageHeader(_pageData);
     currNumEntries = internalPageHeader.numEntries;
-
+    */
     // something with the lowkey highkey??
 
     return SUCCESS;
