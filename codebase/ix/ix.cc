@@ -202,7 +202,7 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
     LeafPageHeader newLeafPageHeader = getLeafPageHeader(newLeafData);
     newLeafPageHeader.FSO = (PAGE_SIZE- splitOffset) - sizeof(LeafPageHeader);
     newLeafPageHeader.numEntries = currLeafPageHeader.numEntries - currNumEntries -1;
-    newLeafPageHeader.next = UINT_MAX;  //some number that we can't reach
+    newLeafPageHeader.next = UINT_MAX; // some number that we can't reach
     newLeafPageHeader.prev = currPageNum;
     setLeafPageHeader(newLeafData, newLeafPageHeader);
 
@@ -590,7 +590,7 @@ RC IndexManager::insertLeafPair(void *pageData, const Attribute &attr, const voi
         }
         offset += keyLength + sizeof(RID);
     }
-    cout << "Offset: " << offset << endl;
+    // cout << "Offset: " << offset << endl;
 
     // for entires that come after, shift to the right
     memcpy((char*)pageData + keyLength + sizeof(RID), (char*)pageData + offset, leafPageHeader.FSO - offset);
@@ -614,20 +614,20 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
         cout << "couldn't read page" << endl;
         return 1;
     }
-    cout << "Flag: " << getFlag(pageData) << endl;
+    // cout << "Flag: " << getFlag(pageData) << endl;
     //Internal Page
     
     RC rc;
     if (getFlag(pageData) == INTERNAL) {
         PageNum childPageNum = getChildPageNum(key, pageData, attr);
-        cout << "ChildPageNum: " << childPageNum << endl;
+        // cout << "ChildPageNum: " << childPageNum << endl;
         rc = insert(ixfileHandle, attr, key, rid, childPageNum, trafficPair);
         if (trafficPair.key == NULL) {
             //check to see if we are trying to insert at first leaf and there's no traffic cop
             if (getInternalPageHeader(pageData).numEntries == 0 && pageNum == 1) {
                 insertInternalPair(pageData, attr, key, childPageNum);
                 ixfileHandle.writePage(pageNum, pageData);
-                cout << "entries: " << getInternalPageHeader(pageData).numEntries << endl;
+                // cout << "entries: " << getInternalPageHeader(pageData).numEntries << endl;
             }
             free(pageData);
             return 0;
@@ -663,7 +663,7 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
 
     //Leaf Page
     else if (getFlag(pageData) == LEAF) {
-        cout << "i got to leaf" << endl;
+        // cout << "i got to leaf" << endl;
         //try inserting and find out if there's free space
         rc = insertLeafPair(pageData, attr, key, rid);
         if (rc == DUPLICATE) {
@@ -715,27 +715,44 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
     unsigned offset = 0;
     void* data = malloc(PAGE_SIZE);
     
+    unsigned numEntries = 0;
     void* internalKey;
     unsigned prevPageNum = UINT_MAX;
-    
+    cout << "J before loop: " << j << endl;
     while (true) {
         ixfileHandle.readPage(j, data); // read in the root page
         if (getFlag(data) == INTERNAL) {
+            cout << "Get in here? 1" << endl;
+            cout << "J: " << j << endl;
             InternalPageHeader internalPageHeader = getInternalPageHeader(data);
             offset += sizeof(InternalPageHeader);
             while (true) {
+                cout << "1. in here?! j: " << j << endl;
+
+                cout << "Num entries in loop: " << numEntries << endl;
+                // use numentries in an if
                 // get the key at the next entry
                 memcpy(&internalKey, (char*)data+offset, getKeyLength(key, attribute));
+                numEntries++;
                 if (compareKeys(attribute, internalKey, key) <= 0) {
+                    cout << "2. in here?!" << endl;
+                    
                     // since we found less than or equal to the key, we need to fetch the corresponding pageNum
                     unsigned keyPageNum;
                     memcpy(&keyPageNum, (char*)data+offset+getKeyLength(key, attribute), sizeof(int));
                     prevPageNum = keyPageNum; // set the prevPageNum to the one that's less than or equal to 
+                    cout << "2.1 Key Page Num: " << keyPageNum << endl;
                     offset += getKeyLength(key, attribute) + sizeof(PageNum);
                 }
                 else {
                     // since the only entries in the page are greater than the key, the key must not exist
-                    if (prevPageNum == UINT_MAX) {
+                    cout << "3. in here wtf" << endl;
+                    if (prevPageNum == UINT_MAX && internalPageHeader.numEntries > 1) {
+                        j = 2;
+                        cout << "should get here" << endl;
+                        break;    
+                    }
+                    else if (prevPageNum == UINT_MAX) { // && internalPageHeader.numEntries > 1
                         return KEY_NOT_FOUND; }
                     // else, go back to the previous pageNum which has an internal key that is less than or equal to the key, and return that
                     j = prevPageNum;
@@ -744,16 +761,19 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
             }
             offset = 0; // reset offset for next page to be read in if necessary
         }
-        else { // is leaf page
+        if (getFlag(data) == LEAF) { // is leaf page
             // we've found the actual page where the key is stored! yay!
             LeafPageHeader leafPageHeader = getLeafPageHeader(data);
             offset = sizeof(LeafPageHeader); 
+            
+            cout << "Get in here? 2" << endl;
 
             // index through all the entries in the page until you find a match
             while (true) {
                 // get the key at the next entry
                 memcpy(&internalKey, (char*)data+offset, getKeyLength(key, attribute));
                 if (compareKeys(attribute, internalKey, key) == 0) {
+                    cout << "Get in here?" << endl;
                     // key found! yay! now we delete
                     unsigned entrySize = getKeyLength(key, attribute) + sizeof(RID);
 
@@ -785,7 +805,7 @@ RC IndexManager::deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
         }
     }
     free(internalKey); // Free allocated memory
-    free(data); // Free allocated memory
+    // free(data); // Free allocated memory
 
     return SUCCESS;
 }
@@ -923,7 +943,7 @@ void IndexManager::printBtree(IXFileHandle &ixfileHandle, const Attribute &attri
 }
 
 IX_ScanIterator::IX_ScanIterator()
-: currPage(0), currKey(0), totalPage(0), currNumEntries(0), currOffset(0)
+: currPage(0), currKey(0), totalPage(0), totalNumEntries(0), currOffset(0)
 {
     _indexManager = IndexManager::instance();
 }
@@ -936,32 +956,52 @@ IX_ScanIterator::~IX_ScanIterator()
 RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 {
     _indexManager = IndexManager::instance();
-    /*
-    void *_pageData;
-
-    unsigned currPage;
-    unsigned currNumEntries;
-
-    unsigned totalPage;
-
-    void* currKey;
-    RID currRid;
-
-    Attribute attr;
-    IXFileHandle ixfileHandle;
-
-    const void *lowKey;
-    const void *highKey;
-    bool lowKeyInclusive;
-    bool highKeyInclusive;
-    */
 
     // you've read the current page in
     // now you need to get the next entry on the page
+    
+    // get lowest leaf page first using lowKey, then read leaf pages from there since they're linked
+
+    // read through leaf page
+    // when global num entries 
+
+    // have a function that finds the first lowKey entry and returns the pageNum (do we guarantee it exists? if not, use if LeafPairExists())
+        // call this once (written below)
+    
+    // have a global LeafPageHeader var that corresponds to _pageData
+
+    /* 
+
+    
+
+    if (currEntry == totalNumEntries) { // then its time to read in a new page 
+        if (leafPageHeader.next == UINT_MAX) return IX_EOF;
+
+        currPageNum = leafPageHeader.next;
+        ixFileHandle.readPage(currPageNum, _pageData); // read in next Page
+        leafPageHeader = getLeafPageHeader(_pageData); // store newest leafPageHeader
+        currEntry = 0;
+        offset = sizeof(LeafPageHeader);
+    }
+
+    if (key == highKey) {}
+
+    // for each key, call compareKey on currKey, highKey if (highKey != NULL)
 
 
+    currEntry++;
+
+
+    */
+    
 
     return SUCCESS;
+}
+
+RC IX_ScanIterator::getLowKeyPage() {
+    if (lowKey == NULL) return SUCCESS;
+    // find first lowkey page and return pageNum
+    return SUCCESS; 
 }
 
 RC IX_ScanIterator::close()
@@ -971,15 +1011,19 @@ RC IX_ScanIterator::close()
 }
 
 RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, const void*lK, const void *hK, bool lKI, bool hKI) {
-    /*
+    
     // Start at root page
     currOffset = sizeof(InternalPageHeader);
-    currPage = _indexManager->getRootPageNum(ixfileHandle);
+    currPage = _indexManager.getRootPageNum();
+    getLowKeyPage(); 
     totalPage = ixFh.getNumberOfPages();
 
     currKey = NULL;
     currRid.pageNum = 0;
     currRid.slotNum = 0;
+    
+    currLeafEntry = 0;
+    currInternalEntry = 0;
 
     // Buffer to hold the current page
     _pageData = malloc(PAGE_SIZE);
@@ -1000,8 +1044,8 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
     } else return SUCCESS;
 
     InternalPageHeader internalPageHeader = _indexManager->getInternalPageHeader(_pageData);
-    currNumEntries = internalPageHeader.numEntries;
-    */
+    totalNumEntries = internalPageHeader.numEntries;
+
     // something with the lowkey highkey??
 
     return SUCCESS;

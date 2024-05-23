@@ -214,11 +214,14 @@ class IX_ScanIterator {
         friend class IndexManager;
     private:
         IndexManager *_indexManager;
+        
         void *_pageData;
 
         unsigned currOffset;
         unsigned currPage;
-        unsigned currNumEntries;
+        unsigned totalNumEntries;
+
+        unsigned currEntry;
 
         unsigned totalPage;
 
@@ -239,9 +242,9 @@ class IX_ScanIterator {
         const void      *highKey,
         bool			lowKeyInclusive,
         bool        	highKeyInclusive);
-        
-        // some check condition functions
 
+        RC getLowKeyPage();
+        // some check condition functions
 };
 
 

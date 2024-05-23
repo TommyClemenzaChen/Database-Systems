@@ -44,31 +44,32 @@ int main () {
     rid.slotNum = 20;
 
     InternalPageHeader internalPageHeader = indexManager->getInternalPageHeader(pageData);
-    cout << "Num entries before: " << internalPageHeader.numEntries << endl;
-    cout << "FSO before: " << internalPageHeader.FSO << endl;
+    cout << "Num Internal entries before: " << internalPageHeader.numEntries << endl;
+    cout << "Internal FSO before: " << internalPageHeader.FSO << endl;
+
+    ixfileHandle.readPage(2, pageData);
+    LeafPageHeader leafPageHeader = indexManager->getLeafPageHeader(pageData);
+    cout << "Num leaf entries before: " << leafPageHeader.numEntries << endl;
 
     // insert entry
     RC result = indexManager->insertEntry(ixfileHandle, attr, &key, rid);
 
-    ixfileHandle.readPage(rootNum, pageData);
-    internalPageHeader = indexManager->getInternalPageHeader(pageData);
-
-    cout << "Num entries after: " << internalPageHeader.numEntries << endl;
-    cout << "FSO after: " << internalPageHeader.FSO << endl;
+    ixfileHandle.readPage(2, pageData);
+    leafPageHeader = indexManager->getLeafPageHeader(pageData);
+    cout << "Num leaf entries after: " << leafPageHeader.numEntries << endl;
 
 
-    indexManager->printBtree(ixfileHandle, attr);
+    // indexManager->printBtree(ixfileHandle, attr);
 
     cout << "-------------------------------------------------------------------------" << endl;
     
     // delete entry
     result = indexManager->deleteEntry(ixfileHandle, attr, &key, rid);
 
-    ixfileHandle.readPage(rootNum, pageData);
-    internalPageHeader = indexManager->getInternalPageHeader(pageData);
+    ixfileHandle.readPage(2, pageData);
+    leafPageHeader = indexManager->getLeafPageHeader(pageData);
 
-    cout << "Num entries after: " << internalPageHeader.numEntries << endl;
-    cout << "FSO after: " << internalPageHeader.FSO << endl;
+    cout << "Num Leaf entries after delete: " << leafPageHeader.numEntries << endl;
 
     cout << "-------------------------------------------------------------------------" << endl;
 
