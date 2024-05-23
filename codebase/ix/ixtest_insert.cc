@@ -44,12 +44,16 @@ int main () {
 
     InternalPageHeader internalPageHeader = indexManager->getInternalPageHeader(pageData);
     cout << "Num entries before: " << internalPageHeader.numEntries << endl;
-
+    cout << "FSO before: " << internalPageHeader.FSO << endl;
 
     // insert entry
     RC result = indexManager->insertEntry(ixfileHandle, attr, &key, rid);
-    
+
+    ixfileHandle.readPage(rootNum, pageData);
+    internalPageHeader = indexManager->getInternalPageHeader(pageData);
+
     cout << "Num entries after: " << internalPageHeader.numEntries << endl;
+    cout << "FSO after: " << internalPageHeader.FSO << endl;
 
 
     indexManager->printBtree(ixfileHandle, attr);
