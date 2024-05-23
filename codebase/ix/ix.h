@@ -23,6 +23,7 @@ typedef enum {
     NO_SPACE = 1,
     DUPLICATE = 2, 
     SPLIT_ERROR = 3,
+    I_GIVE_UP = 4,
 
     
 } ERROR_CODES;
@@ -141,12 +142,12 @@ class IndexManager {
                 bool highKeyInclusive,
                 IX_ScanIterator &ix_ScanIterator);
 
-        void printKey(const Attribute &attribute, void *pageData, unsigned offset, unsigned &keyLength) const;
+        void printKey(const Attribute &attribute, void *pageData, unsigned offset) const;
 
         void printRID(void *pageData, unsigned offset) const;
 
         // Print the B+ tree in pre-order (in a JSON record format)
-        void preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, unsigned &keyLength) const;
+        void preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, int depth) const;
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
         void printLeafPageHeader(LeafPageHeader leafPageHeader);
         void printInternalPageHeader(InternalPageHeader internalPageHeader);
