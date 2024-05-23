@@ -132,7 +132,7 @@ PageNum IndexManager::getChildPageNum(const void *key, void *pageData, Attribute
         
         if (compareKeys(attr, key, (char*)pageData + offset) < 0) {
             return childPageNum;
-        } //we need to find where key is smaller
+        } // we need to find where key is smaller
 
         offset += sizeof(PageNum) + getKeyLength((char*)pageData + offset, attr);
     }
@@ -966,42 +966,85 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
     // when global num entries 
 
     // have a function that finds the first lowKey entry and returns the pageNum (do we guarantee it exists? if not, use if LeafPairExists())
-        // call this once (written below)
     
     // have a global LeafPageHeader var that corresponds to _pageData
-
-    /* 
-
-    
-
+    cout << "Current entry: " << currEntry << ", total Entries: " << totalNumEntries << endl;
     if (currEntry == totalNumEntries) { // then its time to read in a new page 
-        if (leafPageHeader.next == UINT_MAX) return IX_EOF;
-
-        currPageNum = leafPageHeader.next;
-        ixFileHandle.readPage(currPageNum, _pageData); // read in next Page
-        leafPageHeader = getLeafPageHeader(_pageData); // store newest leafPageHeader
+        if (leafPageHeader.next == UINT_MAX || leafPageHeader.next == 0) {
+            return IX_EOF;
+        }
+        currPage = leafPageHeader.next;
+        ixfileHandle.readPage(currPage, _pageData); // read in next Page
+        leafPageHeader = _indexManager->getLeafPageHeader(_pageData); // store newest leafPageHeader
+        totalNumEntries = leafPageHeader.numEntries;
         currEntry = 0;
-        offset = sizeof(LeafPageHeader);
+        currOffset = sizeof(LeafPageHeader);
     }
 
-    if (key == highKey) {}
-
-    // for each key, call compareKey on currKey, highKey if (highKey != NULL)
-
-
-    currEntry++;
-
-
-    */
+    currOffset += _indexManager->getKeyLength((char*)_pageData+currOffset, attr) + sizeof(RID); 
+    currEntry++;    
     
+    // Get currKey
+    unsigned keyLength = _indexManager->getKeyLength((char*)_pageData+currOffset, attr);
+    currKey = malloc(keyLength); // is key already malloc'd?
+    memcpy(currKey, (char*)_pageData + currOffset, keyLength);
+
+    // Get currRid
+    memcpy(&currRid, (char*)_pageData + currOffset + keyLength, sizeof(RID));
+
+    // For each key, call compareKey on currKey, highKey if (highKey != NULL)
+    if (highKey != NULL) {
+        if (_indexManager->compareKeys(attr, currKey, highKey) == 0 && !highKeyInclusive) {
+            return IX_EOF;
+        }
+        else if (_indexManager->compareKeys(attr, currKey, highKey) == 0) {
+            key = currKey;
+            rid = currRid;
+        }
+    }
 
     return SUCCESS;
 }
 
-RC IX_ScanIterator::getLowKeyPage() {
+unsigned IX_ScanIterator::getLowKeyPage() {
     if (lowKey == NULL) return SUCCESS;
     // find first lowkey page and return pageNum
+
     return SUCCESS; 
+}
+
+unsigned IX_ScanIterator::getFirstLeafPage() {
+    cout << "Are these working " << endl;
+    return searchLeaf(NULL);
+    
+    // return SUCCESS;
+}
+
+// malloc for page data outside of the function
+unsigned IX_ScanIterator::searchLeaf(void* key) {
+    cout << "I get in here pelasea/" << endl;
+    // returns the page that the key is on 
+    void* internalPageData = malloc(PAGE_SIZE);
+
+    // always start at the root
+    unsigned rootNum = _indexManager->getRootPageNum(ixfileHandle);
+    cout << rootNum << endl;
+    ixfileHandle.readPage(rootNum, internalPageData); // read rootPage
+    InternalPageHeader internalPageHeader = _indexManager->getInternalPageHeader(internalPageData);
+
+    unsigned offset = sizeof(InternalPageHeader);
+    // void *currentKey; // do i malloc here ? fml
+    unsigned keyLength;
+    unsigned nextPage = 0;
+    while (_indexManager->getFlag(internalPageData) == INTERNAL) {
+        keyLength = _indexManager->getKeyLength((char*)internalPageData+offset, attr);
+        memcpy(&nextPage, (char*)internalPageData+offset+keyLength, sizeof(PageNum));
+        cout << "Page: " << nextPage << endl;
+        // try to find what page the leaf key is at and read it in
+        ixfileHandle.readPage(nextPage, internalPageData);
+    }
+    free(internalPageData);
+    return nextPage;
 }
 
 RC IX_ScanIterator::close()
@@ -1011,19 +1054,17 @@ RC IX_ScanIterator::close()
 }
 
 RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, const void*lK, const void *hK, bool lKI, bool hKI) {
-    
     // Start at root page
     currOffset = sizeof(InternalPageHeader);
-    currPage = _indexManager.getRootPageNum();
-    getLowKeyPage(); 
-    totalPage = ixFh.getNumberOfPages();
-
+    currPage = 0;
+    
     currKey = NULL;
     currRid.pageNum = 0;
     currRid.slotNum = 0;
+    currEntry = 0;
     
-    currLeafEntry = 0;
-    currInternalEntry = 0;
+    // currLeafEntry = 0;
+    // currInternalEntry = 0;
 
     // Buffer to hold the current page
     _pageData = malloc(PAGE_SIZE);
@@ -1036,6 +1077,18 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
     lowKeyInclusive = lKI;
     highKeyInclusive = hKI;
 
+    /*if (lowKey != NULL) {
+        cout << "in here" << endl;
+        currPage = getLowKeyPage(); 
+    }
+    else {
+        cout << "in here2" << endl;*/
+        currPage = getFirstLeafPage();
+    /*    cout << currPage << endl;
+    }*/
+    cout << "First page :P " << currPage << endl;
+    totalPage = ixFh.getNumberOfPages();
+
     // read in the page
     if (totalPage > 0) {
         if (ixfileHandle.readPage(currPage, _pageData)) {
@@ -1043,10 +1096,10 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
         }
     } else return SUCCESS;
 
-    InternalPageHeader internalPageHeader = _indexManager->getInternalPageHeader(_pageData);
-    totalNumEntries = internalPageHeader.numEntries;
-
-    // something with the lowkey highkey??
+    LeafPageHeader leafPageHeader = _indexManager->getLeafPageHeader(_pageData);
+    totalNumEntries = leafPageHeader.numEntries;
+    
+    cout << "Total Num entries: " << totalNumEntries << endl;
 
     return SUCCESS;
 }

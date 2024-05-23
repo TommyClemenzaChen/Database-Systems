@@ -59,7 +59,8 @@ int testCase_3(const string &indexFileName, const Attribute &attribute)
         assert(rid.pageNum == 500 && "rid.pageNum is not correct.");
         assert(rid.slotNum == 20 && "rid.slotNum is not correct.");
         count++;
-    }
+    }//*/ count++;
+    // cout << "count: " << count << endl;
     assert(count == 1 && "scan count is not correct.");
 
     // collect counters

@@ -236,6 +236,8 @@ class IX_ScanIterator {
         bool lowKeyInclusive;
         bool highKeyInclusive;
 
+        LeafPageHeader leafPageHeader;
+
         RC scanInit(IXFileHandle &ixfileHandle,
         const Attribute &attribute,
         const void      *lowKey,
@@ -243,8 +245,10 @@ class IX_ScanIterator {
         bool			lowKeyInclusive,
         bool        	highKeyInclusive);
 
-        RC getLowKeyPage();
         // some check condition functions
+        unsigned getLowKeyPage();
+        unsigned getFirstLeafPage();
+        unsigned searchLeaf(void* key);
 };
 
 
