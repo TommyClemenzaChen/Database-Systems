@@ -931,51 +931,6 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
     return SUCCESS;
 }
 
-unsigned IX_ScanIterator::getLowKeyPage() {
-    if (lowKey == NULL) return SUCCESS;
-    // find first lowkey page and return pageNum
-
-    return SUCCESS; 
-}
-
-unsigned IX_ScanIterator::getFirstLeafPage() {
-    return searchLeaf(NULL);
-    
-    // return SUCCESS;
-}
-
-// malloc for page data outside of the function
-unsigned IX_ScanIterator::searchLeaf(void* key) {
-    // returns the page that the key is on 
-    void* internalPageData = malloc(PAGE_SIZE);
-
-    // always start at the root
-    unsigned rootNum = _indexManager->getRootPageNum(ixfileHandle);
-    ixfileHandle.readPage(rootNum, internalPageData); // read rootPage
-    InternalPageHeader internalPageHeader = _indexManager->getInternalPageHeader(internalPageData);
-
-    if (lowKey == NULL) {
-        free(internalPageData);
-        return 2;
-    }
-
-    unsigned offset = sizeof(InternalPageHeader);
-    // void *currentKey; // do i malloc here ? fml
-    unsigned keyLength;
-    unsigned nextPage = 0;
-    while (_indexManager->getFlag(internalPageData ) == LEAF) {
-        keyLength = _indexManager->getKeyLength((char*)internalPageData+offset, attr);
-        cout << "key length: " << keyLength << endl;
-        memcpy(&nextPage, (char*)internalPageData+offset+keyLength, sizeof(PageNum));
-        cout << "Next page: " << nextPage << endl;
-        // try to find what page the leaf key is at and read it in
-        ixfileHandle.readPage(nextPage, internalPageData);
-    }
-    free(internalPageData);
-    cout << "Next page: " << nextPage << endl;
-    return nextPage;
-}
-
 RC IX_ScanIterator::close()
 {
     free(_pageData);
