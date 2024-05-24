@@ -1,6 +1,7 @@
 #ifndef _ix_h_
 #define _ix_h_
 
+#include <iostream>
 #include <vector>
 #include <string>
 #include <sys/stat.h>
@@ -23,7 +24,8 @@ typedef enum {
     NO_SPACE = 1,
     DUPLICATE = 2, 
     SPLIT_ERROR = 3,
-    KEY_NOT_FOUND = 4,
+    I_GIVE_UP = 4,
+
     
 } ERROR_CODES;
 
@@ -50,15 +52,16 @@ typedef struct InternalPageHeader {
     Flag flag;
     unsigned FSO;
     unsigned numEntries;
+    PageNum leftChildPage;
 } InternalPageHeader;
 
 typedef struct LeafPageHeader {
     Flag flag;
     unsigned FSO;
-    unsigned next;
-    unsigned prev;
+    PageNum next;
+    PageNum prev;
     unsigned numEntries;
-
+    
 } LeafPageHeader;
 
 class IndexManager {
@@ -86,6 +89,8 @@ class IndexManager {
 
         // Insert an entry into the given index that is indicated by the given ixfileHandle.
         RC insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
+
+        RC search(PageNum &pageNum, PageNum &resultPageNum, IXFileHandle ixfileHandle, Attribute attribute, const void *searchKey);
 
         // Delete an entry from the given index that is indicated by the given ixfileHandle.
         RC deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
@@ -141,16 +146,15 @@ class IndexManager {
                 bool highKeyInclusive,
                 IX_ScanIterator &ix_ScanIterator);
 
-        void printKey(const Attribute &attribute, void *pageData, unsigned offset, unsigned &keyLength) const;
+        void printKey(const Attribute &attribute, void *pageData, unsigned offset) const;
 
-        void printRID(void *pageData, unsigned offset) const;
+        void printRID(const Attribute &attribute, void *pageData, unsigned &offset) const;
 
         // Print the B+ tree in pre-order (in a JSON record format)
-        void preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, unsigned &keyLength) const;
+        void preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, int depth) const;
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
         void printLeafPageHeader(LeafPageHeader leafPageHeader);
         void printInternalPageHeader(InternalPageHeader internalPageHeader);
-        RC search(PageNum &pageNum, IXFileHandle ixfileHandle, Attribute attribute, const void *searchKey);
     
     protected:
         IndexManager();
@@ -247,7 +251,9 @@ class IX_ScanIterator {
         bool        	highKeyInclusive);
 
         // some check condition functions
+        unsigned getLowKeyPage();
         unsigned getFirstLeafPage();
+        unsigned searchLeaf(void* key);
 };
 
 
