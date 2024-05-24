@@ -888,12 +888,22 @@ IX_ScanIterator::~IX_ScanIterator()
 
 }
 
+unsigned getFirstLeafPage() {
+
+
+}
+
 RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 {
     _indexManager = IndexManager::instance();
 
+    void * temp = currKey;
+    RID ridTemp = currRid;
+
+    // check if we need to read in a new page
     if (currEntry == totalNumEntries) { // then its time to read in a new page 
         if (leafPageHeader.next == UINT_MAX || leafPageHeader.next == 0) {
+            free(currKey);
             return IX_EOF;
         }
         currPage = leafPageHeader.next;
@@ -904,7 +914,6 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
         currOffset = sizeof(LeafPageHeader);
     }
 
-    // search through to find lowKey
 
     currOffset += _indexManager->getKeyLength((char*)_pageData+currOffset, attr) + sizeof(RID); 
     currEntry++;    
@@ -920,14 +929,22 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
     // For each key, call compareKey on currKey, highKey if (highKey != NULL)
     if (highKey != NULL) {
         if (_indexManager->compareKeys(attr, currKey, highKey) == 0 && !highKeyInclusive) {
+            key = temp;
+            rid = ridTemp;
+            free(currKey);
             return IX_EOF;
         }
-        else if (_indexManager->compareKeys(attr, currKey, highKey) == 0) {
+        else if (_indexManager->compareKeys(attr, currKey, highKey) == 0 ) {
             key = currKey;
             rid = currRid;
+            free(currKey);
+            return IX_EOF;
         }
     }
     
+    key = currKey;
+    rid = currRid;
+
     return SUCCESS;
 }
 
@@ -939,7 +956,7 @@ RC IX_ScanIterator::close()
 
 RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, const void*lK, const void *hK, bool lKI, bool hKI) {
     // Start at root page
-    currOffset = sizeof(InternalPageHeader);
+    currOffset = sizeof(LeafPageHeader);
     currPage = 0;
     
     currKey = NULL;
@@ -966,7 +983,7 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
 
     totalPage = ixfileHandle.getNumberOfPages();
 
-    // read in the page
+    // read in cthe page
     if (totalPage > 0) {
         if (ixfileHandle.readPage(currPage, _pageData)) {
             RBFM_READ_FAILED;
@@ -976,10 +993,25 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
     leafPageHeader = _indexManager->getLeafPageHeader(_pageData);
     totalNumEntries = leafPageHeader.numEntries;
 
-    cout << ixfileHandle.ixReadPageCounter << endl;
-
+    // if lowKey != NULL, get offset to be right where lowKey starts
+    if (lowKey != NULL) {
+        while (true) {
+            unsigned keyLength = _indexManager->getKeyLength((char*)_pageData+currOffset, attr);
+            // currKey = malloc(keyLength); // is key already malloc'd?
+            // memcpy(currKey, (char*)_pageData + currOffset, keyLength);
+            if(_indexManager->compareKeys(attr, (char*)_pageData + currOffset, lowKey) == 0 && lowKeyInclusive) {
+                break;
+            }
+            if (_indexManager->compareKeys(attr, (char*)_pageData+currOffset, lowKey) > 0 && !lowKeyInclusive) {
+                break;
+            }
+            currOffset += keyLength + sizeof(RID);
+        }
+    }
+    
     return SUCCESS;
 }
+
 IXFileHandle::IXFileHandle()
 {
     ixReadPageCounter = 0;

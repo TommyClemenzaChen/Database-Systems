@@ -247,6 +247,7 @@ class IX_ScanIterator {
         bool        	highKeyInclusive);
 
         // some check condition functions
+        unsigned getFirstLeafPage();
 };
 
 
