@@ -251,9 +251,7 @@ class IX_ScanIterator {
         bool        	highKeyInclusive);
 
         // some check condition functions
-        unsigned getLowKeyPage();
-        unsigned getFirstLeafPage();
-        unsigned searchLeaf(void* key);
+        RC getFirstLeafPage(PageNum &pageNum, PageNum &resultPageNum);
 };
 
 

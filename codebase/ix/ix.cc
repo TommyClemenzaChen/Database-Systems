@@ -901,9 +901,19 @@ IX_ScanIterator::~IX_ScanIterator()
 
 }
 
-unsigned getFirstLeafPage() {
+RC IX_ScanIterator::getFirstLeafPage(PageNum &pageNum, PageNum &resultPageNum) {
+    ixfileHandle.readPage(pageNum, _pageData);
+    if (_indexManager->getFlag(_pageData) == LEAF) {
+        resultPageNum = pageNum;
+        return SUCCESS;
+    }
 
-
+    if (_indexManager->getFlag(_pageData) == INTERNAL) {
+        InternalPageHeader internalPageHeader = _indexManager->getInternalPageHeader(_pageData);
+        PageNum childPageNum = internalPageHeader.leftChildPage;
+        return getFirstLeafPage(childPageNum, resultPageNum);
+    }
+    return SUCCESS;
 }
 
 RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
@@ -992,9 +1002,11 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
 
     PageNum rootNum = _indexManager->getRootPageNum(ixfileHandle);
 
-    if (lowKey == NULL)
-        currPage = 2;
-    else 
+    if (lowKey == NULL) {
+        PageNum rootNum = _indexManager->getRootPageNum(ixfileHandle);
+        getFirstLeafPage(rootNum, currPage);
+        cout << "Curr page pls: " << currPage << endl;
+    } else 
         _indexManager->search(rootNum, currPage, ixfileHandle, attr, lowKey);
 
     totalPage = ixfileHandle.getNumberOfPages();
