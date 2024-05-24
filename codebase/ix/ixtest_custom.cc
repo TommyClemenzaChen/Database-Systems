@@ -172,10 +172,14 @@ RC testPrintBtree(const string &indexFileName, const Attribute &attribute) {
     
     indexManager->printBtree(ixfileHandle, attribute);
 
+
     return SUCCESS;
     
 }
 
+RC testSearch(const string &indexFileName, const Attribute &attribute) {
+
+}
 
 int main () {
     indexManager = IndexManager::instance();

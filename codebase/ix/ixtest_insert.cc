@@ -35,12 +35,6 @@ int main () {
     // initialize varchar
     // int stringLength = 5;
     // const char* word = "Hello";
-
-    InternalPageHeader internalPageHeader = indexManager->getInternalPageHeader(pageData);
-    cout << "Num entries before: " << internalPageHeader.numEntries << endl;
-    cout << "FSO before: " << internalPageHeader.FSO << endl;
-
-    // insert entry
     int num = 50; 
     void* key = malloc(sizeof(int));
     memcpy(key, &num, sizeof(int));
@@ -48,28 +42,21 @@ int main () {
     RID rid;
     rid.pageNum = 1;
     rid.slotNum = 20;
-    RC result = indexManager->insertEntry(ixfileHandle, attr, key, rid);
-    
-    rid.pageNum = 2;
-    rid.slotNum = 30;
-    result = indexManager->insertEntry(ixfileHandle, attr, key, rid);
-    
-    rid.pageNum = 3;
-    rid.slotNum = 40;
-    result = indexManager->insertEntry(ixfileHandle, attr, key, rid);
 
-    num = 40;
-    memcpy(key, &num, sizeof(int));
-    rid.pageNum = 4;
-    rid.slotNum = 50;
-    result = indexManager->insertEntry(ixfileHandle, attr, key, rid);
+    InternalPageHeader internalPageHeader = indexManager->getInternalPageHeader(pageData);
+    cout << "Num Internal entries before: " << internalPageHeader.numEntries << endl;
+    cout << "Internal FSO before: " << internalPageHeader.FSO << endl;
 
+    ixfileHandle.readPage(2, pageData);
+    LeafPageHeader leafPageHeader = indexManager->getLeafPageHeader(pageData);
+    cout << "Num leaf entries before: " << leafPageHeader.numEntries << endl;
 
-    ixfileHandle.readPage(rootNum, pageData);
-    internalPageHeader = indexManager->getInternalPageHeader(pageData);
+    // insert entry
+    RC result = indexManager->insertEntry(ixfileHandle, attr, &key, rid);
 
-    cout << "Num entries after: " << internalPageHeader.numEntries << endl;
-    cout << "FSO after: " << internalPageHeader.FSO << endl;
+    ixfileHandle.readPage(2, pageData);
+    leafPageHeader = indexManager->getLeafPageHeader(pageData);
+    cout << "Num leaf entries after: " << leafPageHeader.numEntries << endl;
 
 
     indexManager->printBtree(ixfileHandle, attr);
@@ -79,11 +66,10 @@ int main () {
     // delete entry
     result = indexManager->deleteEntry(ixfileHandle, attr, &key, rid);
 
-    ixfileHandle.readPage(rootNum, pageData);
-    internalPageHeader = indexManager->getInternalPageHeader(pageData);
+    ixfileHandle.readPage(2, pageData);
+    leafPageHeader = indexManager->getLeafPageHeader(pageData);
 
-    cout << "Num entries after: " << internalPageHeader.numEntries << endl;
-    cout << "FSO after: " << internalPageHeader.FSO << endl;
+    cout << "Num Leaf entries after delete: " << leafPageHeader.numEntries << endl;
 
     cout << "-------------------------------------------------------------------------" << endl;
 

@@ -52,15 +52,16 @@ typedef struct InternalPageHeader {
     Flag flag;
     unsigned FSO;
     unsigned numEntries;
+    PageNum leftChildPage;
 } InternalPageHeader;
 
 typedef struct LeafPageHeader {
     Flag flag;
     unsigned FSO;
-    unsigned next;
-    unsigned prev;
+    PageNum next;
+    PageNum prev;
     unsigned numEntries;
-
+    
 } LeafPageHeader;
 
 class IndexManager {
@@ -88,6 +89,8 @@ class IndexManager {
 
         // Insert an entry into the given index that is indicated by the given ixfileHandle.
         RC insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
+
+        RC search(PageNum &pageNum, IXFileHandle ixfileHandle, Attribute attribute, const void *searchKey);
 
         // Delete an entry from the given index that is indicated by the given ixfileHandle.
         RC deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
