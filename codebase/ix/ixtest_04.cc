@@ -69,6 +69,7 @@ int testCase_4(const string &indexFileName, const Attribute &attribute)
     
     // delete entry again - should fail
     rc = indexManager->deleteEntry(ixfileHandle, attribute, &key, rid);
+    cout << rc << endl;
     assert(rc != success && "indexManager::deleteEntry() should fail.");
 
     // close index file

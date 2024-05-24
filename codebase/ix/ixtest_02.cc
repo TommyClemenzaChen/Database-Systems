@@ -51,12 +51,6 @@ int testCase_2(const string &indexFileName, const Attribute &attribute)
     rc = indexManager->insertEntry(ixfileHandle, attribute, &key, rid);
     assert(rc == success && "indexManager::insertEntry() should not fail.");
 
-    cerr << endl;
-    indexManager->printBtree(ixfileHandle, attribute);
-
-    rc = indexManager->deleteEntry(ixfileHandle, attribute, &key, rid);
-    assert(rc == success && "indexManager::insertEntry() should not fail.");
-
     // collect counters
     rc = ixfileHandle.collectCounterValues(readPageCountAfter, writePageCountAfter, appendPageCountAfter);
     assert(rc == success && "indexManager::collectCounterValues() should not fail.");
