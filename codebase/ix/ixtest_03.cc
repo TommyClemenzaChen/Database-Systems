@@ -62,6 +62,7 @@ int testCase_3(const string &indexFileName, const Attribute &attribute)
     }
     assert(count == 1 && "scan count is not correct.");
 
+
     // collect counters
     rc = ixfileHandle.collectCounterValues(readPageCountAfter, writePageCountAfter, appendPageCountAfter);
     assert(rc == success && "indexManager::collectCounterValues() should not fail.");

@@ -150,6 +150,7 @@ class IndexManager {
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
         void printLeafPageHeader(LeafPageHeader leafPageHeader);
         void printInternalPageHeader(InternalPageHeader internalPageHeader);
+        RC search(PageNum &pageNum, IXFileHandle ixfileHandle, Attribute attribute, const void *searchKey);
     
     protected:
         IndexManager();
