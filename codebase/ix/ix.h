@@ -237,7 +237,7 @@ class IX_ScanIterator {
         RID currRid;
 
         Attribute attr;
-        IXFileHandle _ixfileHandle;
+        IXFileHandle ixfileHandle;
 
         const void *lowKey;
         const void *highKey;

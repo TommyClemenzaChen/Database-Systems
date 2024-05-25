@@ -128,20 +128,18 @@ PageNum IndexManager::getChildPageNum(const void *key, void *pageData, Attribute
     unsigned keyLength = 0;
 
     for (unsigned i = 0; i < internalPageHeader.numEntries; i++) {
+        if (compareKeys(attr, key, (char*)pageData + offset) < 0) {
+            break;
+        } 
+
         keyLength = getKeyLength(key, attr);
         memcpy(&childPageNum, (char*)pageData + offset + keyLength, sizeof(PageNum));
         
-        if (compareKeys(attr, key, (char*)pageData + offset) < 0) {
-            offset += keyLength + sizeof(PageNum);
-            break;
-        } //we need to find where key is smaller
-
         offset += keyLength + sizeof(PageNum);
     }
 
     //correct pageNum is to the left of the last key we read
     if (internalPageHeader.numEntries > 0) {
-        offset -= (keyLength + sizeof(PageNum));
         keyLength = getKeyLength((char*)pageData + offset, attr);
         memcpy(&childPageNum, (char*)pageData + offset + keyLength, sizeof(PageNum));
     }
@@ -187,6 +185,7 @@ unsigned IndexManager::getKeyLength(const void *key, const Attribute attr) const
 }
 
 RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle &ixFileHandle, Attribute attr, TrafficPair &trafficPair) {
+    
     LeafPageHeader currLeafPageHeader = getLeafPageHeader(currLeafData); 
     
     unsigned currNumEntries = 0;
@@ -411,10 +410,6 @@ bool IndexManager::leafPairExists(void *pageData, const void *key, const RID &ri
     for (unsigned i = 0; i < leafHeader.numEntries; i++) {
 		tempKeyLength = getKeyLength((char*) pageData + offset, attr);
 		memcpy(&tempRID, (char*) pageData + offset + tempKeyLength, sizeof(RID));
-
-        cout << tempRID.pageNum << endl;
-        cout << tempRID.slotNum << endl;
-		
         if(compareKeys(attr, key, (char*) pageData + offset) == 0 && compareRIDS(tempRID, rid))
 			return true;
 
@@ -551,7 +546,7 @@ RC IndexManager::insertInternalPair(void *pageData, const Attribute &attr, const
     
     InternalPageHeader internalPageHeader = getInternalPageHeader(pageData);
 
-    printInternalPageHeader(internalPageHeader);
+    //printInternalPageHeader(internalPageHeader);
     //at this point, trafficPair shouldn't have null fields
 
 
@@ -593,7 +588,7 @@ RC IndexManager::insertLeafPair(void *pageData, const Attribute &attr, const voi
 
     LeafPageHeader leafPageHeader = getLeafPageHeader(pageData);
     
-    printLeafPageHeader(leafPageHeader);
+    //printLeafPageHeader(leafPageHeader);
 
     if (PAGE_SIZE - leafPageHeader.FSO < getKeyLength(key, attr) + sizeof(RID)) {
         return NO_SPACE;
@@ -954,7 +949,7 @@ IX_ScanIterator::~IX_ScanIterator()
 }
 
 RC IX_ScanIterator::getFirstLeafPage(PageNum &pageNum, PageNum &resultPageNum) {
-    _ixfileHandle.readPage(pageNum, _pageData);
+    ixfileHandle.readPage(pageNum, _pageData);
     if (_indexManager->getFlag(_pageData) == LEAF) {
         resultPageNum = pageNum;
         return SUCCESS;
@@ -970,20 +965,21 @@ RC IX_ScanIterator::getFirstLeafPage(PageNum &pageNum, PageNum &resultPageNum) {
 
 RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 {
+    _indexManager = IndexManager::instance();
 
     void * temp = currKey;
     RID ridTemp = currRid;
 
     // check if we need to read in a new page
     if (currEntry == totalNumEntries) { // then its time to read in a new page 
-        cout << "not here" << endl;
-        if (leafPageHeader.next == UINT_MAX || leafPageHeader.next == 0) {
-            cout <<"here?" << endl;
+        cout << "Curr entry: " << currEntry << ", Total Entries: " << totalNumEntries << endl;
+        cout << "CurrPage:" << currPage <<  ", Leaf Page Header next: " << leafPageHeader.next << ", Leaf Page Header prev: " << leafPageHeader.prev << endl;
+        if (currPage == totalPage || leafPageHeader.next == UINT_MAX || leafPageHeader.next == 0) {
             free(currKey);
             return IX_EOF;
         }
         currPage = leafPageHeader.next;
-        _ixfileHandle.readPage(currPage, _pageData); // read in next Page
+        ixfileHandle.readPage(currPage, _pageData); // read in next Page
         leafPageHeader = _indexManager->getLeafPageHeader(_pageData); // store newest leafPageHeader
         totalNumEntries = leafPageHeader.numEntries;
         currEntry = 0;
@@ -1000,7 +996,6 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
     // For each key, call compareKey on currKey, highKey if (highKey != NULL)
     if (highKey != NULL) {
-        cout << "here :P" << endl;
         if (_indexManager->compareKeys(attr, currKey, highKey) == 0 && !highKeyInclusive) {
             key = temp;
             rid = ridTemp;
@@ -1020,6 +1015,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
     currOffset += _indexManager->getKeyLength((char*)_pageData+currOffset, attr) + sizeof(RID); 
     currEntry++;    
+
 
     return SUCCESS;
 }
@@ -1044,27 +1040,27 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
     _pageData = malloc(PAGE_SIZE);
 
     // Store the variables passed in
-    _ixfileHandle = ixFh;
+    ixfileHandle = ixFh;
     attr = attribute;
     lowKey = lK;
     highKey = hK;
     lowKeyInclusive = lKI;
     highKeyInclusive = hKI;
 
-    PageNum rootNum = _indexManager->getRootPageNum(_ixfileHandle);
+    PageNum rootNum = _indexManager->getRootPageNum(ixfileHandle);
 
     if (lowKey == NULL) {
-        PageNum rootNum = _indexManager->getRootPageNum(_ixfileHandle);
+        PageNum rootNum = _indexManager->getRootPageNum(ixfileHandle);
         getFirstLeafPage(rootNum, currPage);
         cout << "Curr page pls: " << currPage << endl;
     } else 
-        _indexManager->search(rootNum, currPage, _ixfileHandle, attr, lowKey);
+        _indexManager->search(rootNum, currPage, ixfileHandle, attr, lowKey);
 
-    totalPage = _ixfileHandle.getNumberOfPages();
+    totalPage = ixfileHandle.getNumberOfPages();
 
     // read in the page
     if (totalPage > 0) {
-        if (_ixfileHandle.readPage(currPage, _pageData)) {
+        if (ixfileHandle.readPage(currPage, _pageData)) {
             RBFM_READ_FAILED;
         }
     } else return SUCCESS;
