@@ -146,7 +146,7 @@ PageNum IndexManager::getChildPageNum(const void *key, void *pageData, Attribute
         memcpy(&childPageNum, (char*)pageData + offset + keyLength, sizeof(PageNum));
     }
     
-    cout << "childPage: " << childPageNum << endl;
+    // cout << "childPage: " << childPageNum << endl;
     return childPageNum;
 }
 
@@ -404,8 +404,8 @@ bool IndexManager::leafPairExists(void *pageData, const void *key, const RID &ri
 		tempKeyLength = getKeyLength((char*) pageData + offset, attr);
 		memcpy(&tempRID, (char*) pageData + offset + tempKeyLength, sizeof(RID));
 
-        cout << tempRID.pageNum << endl;
-        cout << tempRID.slotNum << endl;
+        // cout << tempRID.pageNum << endl;
+        // cout << tempRID.slotNum << endl;
 		
         if(compareKeys(attr, key, (char*) pageData + offset) == 0 && compareRIDS(tempRID, rid))
 			return true;
@@ -438,7 +438,6 @@ bool IndexManager::trafficPairExists(void *pageData, const void *key, const Page
 
 RC IndexManager::createFile(const string &fileName)
 {
-    cout << "In createFile()" << endl;
     if (fileExists(fileName)) {
         return 1;
     }
@@ -496,14 +495,6 @@ RC IndexManager::destroyFile(const string &fileName)
     return 0;
 }
 
-RC IndexManager::ixFileHandleExists(IXFileHandle &ixfileHandle) {
-    // ixFileHandle already in use
-    if (ixfileHandle.getfd() != NULL) {
-        return 1;
-    }
-    else return SUCCESS;
-}
-
 RC IndexManager::openFile(const string &fileName, IXFileHandle &ixfileHandle)
 {
     // ixFileHandle already in use
@@ -511,7 +502,7 @@ RC IndexManager::openFile(const string &fileName, IXFileHandle &ixfileHandle)
         return 1;
     }
 
-    // no file exists
+    //no file exists
     if (!fileExists(fileName)) {
         return 2;
     }
@@ -551,7 +542,7 @@ RC IndexManager::insertInternalPair(void *pageData, const Attribute &attr, const
     
     InternalPageHeader internalPageHeader = getInternalPageHeader(pageData);
 
-    printInternalPageHeader(internalPageHeader);
+    // printInternalPageHeader(internalPageHeader);
     //at this point, trafficPair shouldn't have null fields
 
 
@@ -587,13 +578,12 @@ RC IndexManager::insertInternalPair(void *pageData, const Attribute &attr, const
 RC IndexManager::insertLeafPair(void *pageData, const Attribute &attr, const void *key, const RID &rid) {
     //we don't want duplicates
     if (leafPairExists(pageData, key, rid, attr)) {
-        cout << "duplicate" << endl;
         return DUPLICATE;
     }
 
     LeafPageHeader leafPageHeader = getLeafPageHeader(pageData);
     
-    printLeafPageHeader(leafPageHeader);
+    // printLeafPageHeader(leafPageHeader);
 
     if (PAGE_SIZE - leafPageHeader.FSO < getKeyLength(key, attr) + sizeof(RID)) {
         return NO_SPACE;
@@ -606,7 +596,6 @@ RC IndexManager::insertLeafPair(void *pageData, const Attribute &attr, const voi
         }
         offset += getKeyLength((char*)pageData + offset, attr) + sizeof(RID);
     }
-    cout << "Offset: " << offset << endl;
 
     //for entires that come after, shift to the right
     unsigned shiftOffset = offset;
@@ -631,7 +620,7 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
         cout << "couldn't read page" << endl;
         return 1;
     }
-    cout << "Flag: " << getFlag(pageData) << endl;
+
     //Internal Page
     
     RC rc;
@@ -674,7 +663,7 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
 
     //Leaf Page
     else if (getFlag(pageData) == LEAF) {
-        cout << "i got to leaf" << endl;
+        cout << "Got to leaf" << endl;
         //try inserting and find out if there's free space
         rc = insertLeafPair(pageData, attr, key, rid);
         if (rc == DUPLICATE) {
@@ -728,7 +717,7 @@ RC IndexManager::search(PageNum &pageNum, PageNum &resultPageNum, IXFileHandle &
     }
 
     PageNum childPageNum = getChildPageNum(searchKey, pageData, attribute);
-    cout << childPageNum << endl;
+    // cout << childPageNum << endl;
     free(pageData);
     return search(childPageNum, resultPageNum, ixfileHandle, attribute, searchKey);
 }
@@ -956,7 +945,6 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
     // For each key, call compareKey on currKey, highKey if (highKey != NULL)
     if (highKey != NULL) {
-        cout << "here :P" << endl;
         if (_indexManager->compareKeys(attr, currKey, highKey) == 0 && !highKeyInclusive) {
             key = temp;
             rid = ridTemp;
@@ -977,16 +965,6 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
     currOffset += _indexManager->getKeyLength((char*)_pageData+currOffset, attr) + sizeof(RID); 
     currEntry++;    
 
-    unsigned readPageCountAfter = 0;
-    unsigned writePageCountAfter = 0;
-    unsigned appendPageCountAfter = 0;
-    
-    // collect counters
-    ixfileHandle.collectCounterValues(readPageCountAfter, writePageCountAfter, appendPageCountAfter);
-
-    cout << "[GetNextEntry] IXScan counter values: " << ixfileHandle.ixReadPageCounter << " " << ixfileHandle.ixWritePageCounter << " " << ixfileHandle.ixAppendPageCounter << endl;
-
-    cerr << "[GetNextEntry] CollectCounterValues(): " << readPageCountAfter << " " << writePageCountAfter << " " << appendPageCountAfter << endl;
 
     return SUCCESS;
 }
@@ -994,6 +972,14 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 RC IX_ScanIterator::close()
 {
     free(_pageData);
+    return SUCCESS;
+}
+
+RC IndexManager::ixFileHandleExists(IXFileHandle &ixfileHandle) {
+    // ixFileHandle already in use
+    if (ixfileHandle.getfd() != NULL) {
+        return 1;
+    }
     return SUCCESS;
 }
 
@@ -1114,7 +1100,6 @@ RC IXFileHandle::writePage(PageNum pageNum, const void *data)
         // Immediately commit changes to disk
         fflush(_fd);
         ixWritePageCounter++;
-        cout << "ixWritePage: " << ixWritePageCounter << endl;
         return SUCCESS;
     }
     

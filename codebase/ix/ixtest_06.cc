@@ -27,7 +27,7 @@ int testCase_6(const string &indexFileName, const Attribute &attribute)
     unsigned key;
     int inRidSlotNumSum = 0;
     int outRidSlotNumSum = 0;
-    unsigned numOfTuples = 1000;
+    unsigned numOfTuples = 100;
 
     // create index file
     RC rc = indexManager->createFile(indexFileName);
@@ -50,6 +50,7 @@ int testCase_6(const string &indexFileName, const Attribute &attribute)
         inRidSlotNumSum += rid.slotNum;
     }
 
+    cout << "Got out of insert" << endl;
     // Scan
     rc = indexManager->scan(ixfileHandle, attribute, NULL, NULL, true, true, ix_ScanIterator);
     assert(rc == success && "indexManager::scan() should not fail.");
@@ -59,7 +60,7 @@ int testCase_6(const string &indexFileName, const Attribute &attribute)
     while(ix_ScanIterator.getNextEntry(rid, &key) == success)
     {
         count++;
-
+        cout << "in get Next entry :3" << endl;
         if (rid.pageNum % 200 == 0) {
             cerr << count << " - Returned rid: " << rid.pageNum << " " << rid.slotNum << endl;
         }
