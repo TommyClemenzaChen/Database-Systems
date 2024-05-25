@@ -41,6 +41,8 @@ int testCase_3(const string &indexFileName, const Attribute &attribute)
     RC rc = indexManager->openFile(indexFileName, ixfileHandle);
     assert(rc == success && "indexManager::openFile() should not fail.");
 
+    cout << "IXFileHandle in ixtest_03(): " << &ixfileHandle << endl;
+
     // collect counters
     rc = ixfileHandle.collectCounterValues(readPageCount, writePageCount, appendPageCount);
     assert(rc == success && "indexManager::collectCounterValues() should not fail.");
@@ -50,7 +52,7 @@ int testCase_3(const string &indexFileName, const Attribute &attribute)
     // Conduct a scan
     rc = indexManager->scan(ixfileHandle, attribute, NULL, NULL, true, true, ix_ScanIterator);
     assert(rc == success && "indexManager::scan() should not fail.");
-
+    
     // There should be one record
     int count = 0;
     while(ix_ScanIterator.getNextEntry(rid, &key) == success)
@@ -61,7 +63,6 @@ int testCase_3(const string &indexFileName, const Attribute &attribute)
         count++;
     }
     assert(count == 1 && "scan count is not correct.");
-
 
     // collect counters
     rc = ixfileHandle.collectCounterValues(readPageCountAfter, writePageCountAfter, appendPageCountAfter);
