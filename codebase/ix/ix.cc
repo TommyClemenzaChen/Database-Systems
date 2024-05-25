@@ -128,27 +128,26 @@ PageNum IndexManager::getChildPageNum(const void *key, void *pageData, Attribute
     unsigned keyLength = 0;
 
     for (unsigned i = 0; i < internalPageHeader.numEntries; i++) {
+        if (compareKeys(attr, key, (char*)pageData + offset) < 0) {
+            break;
+        } 
+
         keyLength = getKeyLength(key, attr);
         memcpy(&childPageNum, (char*)pageData + offset + keyLength, sizeof(PageNum));
         
-        if (compareKeys(attr, key, (char*)pageData + offset) < 0) {
-            offset += keyLength + sizeof(PageNum);
-            break;
-        } //we need to find where key is smaller
-
         offset += keyLength + sizeof(PageNum);
     }
 
     //correct pageNum is to the left of the last key we read
     if (internalPageHeader.numEntries > 0) {
-        offset -= (keyLength + sizeof(PageNum));
         keyLength = getKeyLength((char*)pageData + offset, attr);
         memcpy(&childPageNum, (char*)pageData + offset + keyLength, sizeof(PageNum));
     }
     
-    // cout << "childPage: " << childPageNum << endl;
+    cout << "childPage: " << childPageNum << endl;
     return childPageNum;
 }
+
 
 Flag IndexManager::getFlag(void *data) const {
     Flag flag;
@@ -951,8 +950,6 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
     // check if we need to read in a new page
     if (currEntry == totalNumEntries) { // then its time to read in a new page 
-        cout << "Curr entry: " << currEntry << ", Total Entries: " << totalNumEntries << endl;
-        cout << "CurrPage: " << currPage <<  ", Leaf Page Header next: " << leafPageHeader.next << ", Leaf Page Header prev: " << leafPageHeader.prev << endl;
         if (currPage == totalPage || leafPageHeader.next == UINT_MAX || leafPageHeader.next == 0) {
             free(currKey);
             return IX_EOF;
@@ -1058,8 +1055,6 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
     } else 
         _indexManager->search(rootNum, currPage, ixfileHandle, attr, lowKey);
 
-    
-    
     leafPageHeader = _indexManager->getLeafPageHeader(_pageData);
     totalNumEntries = leafPageHeader.numEntries;
 
