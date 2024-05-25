@@ -211,17 +211,18 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
     // loop to link leaves
     if (currLeafPageHeader.next != UINT_MAX) {
         void* linkPageData = malloc(PAGE_SIZE);
-        ixFileHandle.readPage(currPageNum, linkPageData); // start at current page
-        LeafPageHeader linkLeafPageHeader = getLeafPageHeader(linkPageData);
-        unsigned linkPageNum;
+        unsigned linkPageNum = currPageNum;
+        LeafPageHeader linkLeafPageHeader;
         while (linkLeafPageHeader.next != UINT_MAX) {
             linkPageNum = linkLeafPageHeader.next;
             ixFileHandle.readPage(linkPageNum, linkPageData);
             linkLeafPageHeader = getLeafPageHeader(linkPageData);
+            // if (linkLeafPageHeader.next == UINT_MAX) break;
         }
         newLeafPageHeader.prev = linkPageNum;
         linkLeafPageHeader.next = ixFileHandle.getNumberOfPages();
         setLeafPageHeader(linkPageData, linkLeafPageHeader);
+        ixFileHandle.writePage(linkPageNum, linkPageData);
     }
     else {
         currLeafPageHeader.next = ixFileHandle.getNumberOfPages();
@@ -652,7 +653,7 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
     RC rc;
     if (getFlag(pageData) == INTERNAL) {
         PageNum childPageNum = getChildPageNum(key, pageData, attr);
-        cout << "ChildPageNum: " << childPageNum << endl;
+        // cout << "ChildPageNum: " << childPageNum << endl;
         rc = insert(ixfileHandle, attr, key, rid, childPageNum, trafficPair);
         if (trafficPair.key == NULL) {
             free(pageData);
@@ -951,7 +952,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
     // check if we need to read in a new page
     if (currEntry == totalNumEntries) { // then its time to read in a new page 
         cout << "Curr entry: " << currEntry << ", Total Entries: " << totalNumEntries << endl;
-        cout << "CurrPage:" << currPage <<  ", Leaf Page Header next: " << leafPageHeader.next << ", Leaf Page Header prev: " << leafPageHeader.prev << endl;
+        cout << "CurrPage: " << currPage <<  ", Leaf Page Header next: " << leafPageHeader.next << ", Leaf Page Header prev: " << leafPageHeader.prev << endl;
         if (currPage == totalPage || leafPageHeader.next == UINT_MAX || leafPageHeader.next == 0) {
             free(currKey);
             return IX_EOF;
