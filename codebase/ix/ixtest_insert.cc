@@ -72,12 +72,12 @@ int main () {
     cout << "FSO after: " << internalPageHeader.FSO << endl;
 
 
-    // indexManager->printBtree(ixfileHandle, attr);
+    indexManager->printBtree(ixfileHandle, attr);
 
     cout << "-------------------------------------------------------------------------" << endl;
     
     // delete entry
-    result = indexManager->deleteEntry(ixfileHandle, attr, &key, rid);
+    //result = indexManager->deleteEntry(ixfileHandle, attr, &key, rid);
 
     ixfileHandle.readPage(rootNum, pageData);
     internalPageHeader = indexManager->getInternalPageHeader(pageData);

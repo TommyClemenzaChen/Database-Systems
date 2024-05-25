@@ -31,7 +31,8 @@ typedef enum {
 
 typedef enum {
     INTERNAL = 0,
-    LEAF = 1
+    LEAF = 1,
+    UNKNOWN = 2,
 } Flag;
 
 typedef struct MetaPageHeader{
@@ -90,7 +91,7 @@ class IndexManager {
         // Insert an entry into the given index that is indicated by the given ixfileHandle.
         RC insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
 
-        RC search(PageNum &pageNum, PageNum &resultPageNum, IXFileHandle ixfileHandle, Attribute attribute, const void *searchKey);
+        RC search(PageNum &pageNum, PageNum &resultPageNum, IXFileHandle &ixfileHandle, Attribute attribute, const void *searchKey);
 
         // Delete an entry from the given index that is indicated by the given ixfileHandle.
         RC deleteEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);
@@ -133,9 +134,9 @@ class IndexManager {
 
         unsigned getKeyLength(const void *key, const Attribute attr) const;
 
-        RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair);
+        RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle &ixFileHandle, Attribute attr, TrafficPair &trafficPair);
 
-        RC splitInternalPage(void *currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair);
+        RC splitInternalPage(void *currInternalData, unsigned currPageNum, IXFileHandle &ixFileHandle, Attribute attr, TrafficPair &trafficPair);
 
         // Initialize and IX_ScanIterator to support a range search
         RC scan(IXFileHandle &ixfileHandle,
@@ -149,6 +150,8 @@ class IndexManager {
         void printKey(const Attribute &attribute, void *pageData, unsigned offset) const;
 
         void printRID(const Attribute &attribute, void *pageData, unsigned &offset) const;
+
+        void printInternalKeys(const Attribute &attribute, void *pageData) const;
 
         // Print the B+ tree in pre-order (in a JSON record format)
         void preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, int depth) const;
@@ -234,7 +237,7 @@ class IX_ScanIterator {
         RID currRid;
 
         Attribute attr;
-        IXFileHandle ixfileHandle;
+        IXFileHandle _ixfileHandle;
 
         const void *lowKey;
         const void *highKey;
@@ -251,9 +254,7 @@ class IX_ScanIterator {
         bool        	highKeyInclusive);
 
         // some check condition functions
-        unsigned getLowKeyPage();
-        unsigned getFirstLeafPage();
-        unsigned searchLeaf(void* key);
+        RC getFirstLeafPage(PageNum &pageNum, PageNum &resultPageNum);
 };
 
 
