@@ -496,6 +496,14 @@ RC IndexManager::destroyFile(const string &fileName)
     return 0;
 }
 
+RC IndexManager::ixFileHandleExists(IXFileHandle &ixfileHandle) {
+    // ixFileHandle already in use
+    if (ixfileHandle.getfd() != NULL) {
+        return 1;
+    }
+    else return SUCCESS;
+}
+
 RC IndexManager::openFile(const string &fileName, IXFileHandle &ixfileHandle)
 {
     // ixFileHandle already in use
@@ -990,6 +998,10 @@ RC IX_ScanIterator::close()
 }
 
 RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, const void*lK, const void *hK, bool lKI, bool hKI) {
+    // check if IXFileHandle exists
+    if (!_indexManager->ixFileHandleExists(ixFh)) {
+        return 1;
+    }
 
     // Start at root page
     currOffset = sizeof(LeafPageHeader);
@@ -1011,32 +1023,18 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
     lowKeyInclusive = lKI;
     highKeyInclusive = hKI;
 
-    totalPage = ixfileHandle.getNumberOfPages();
+    totalPage = ixFh.getNumberOfPages();
     // read in the page
     if (totalPage > 0) {
-        if (ixfileHandle.readPage(currPage, _pageData)) {
+        if (ixFh.readPage(currPage, _pageData)) {
             RBFM_READ_FAILED;
         }
     } else 
         return SUCCESS;
 
-    // collect counters
-    unsigned readPageCount = 0;
-    unsigned writePageCount = 0;
-    unsigned appendPageCount = 0;
-    
-    ixfileHandle.collectCounterValues(readPageCount, writePageCount, appendPageCount);
-
-    cout << "[ScanInit] IXScan counter values: " << ixfileHandle.ixReadPageCounter << " " << ixfileHandle.ixWritePageCounter << " " << ixfileHandle.ixAppendPageCounter << endl;
-    
-    cerr << "[ScanInit] CollectCounterValues(): " << readPageCount << " " << writePageCount << " " << appendPageCount << endl;
-
-    ixFh.collectCounterValues(readPageCount, writePageCount, appendPageCount);
-    cerr << "[ScanInit] CollectCounterValues(): " << readPageCount << " " << writePageCount << " " << appendPageCount << endl << endl;
 
     PageNum rootNum = _indexManager->getRootPageNum(ixfileHandle);
 
-    cout << "ixfileHandle: " << &ixfileHandle << "\nixFh        : " << &ixFh << endl << endl;
 
     if (lowKey == NULL) {
         PageNum rootNum = _indexManager->getRootPageNum(ixfileHandle);
@@ -1070,7 +1068,6 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
 
 IXFileHandle::IXFileHandle()
 {
-    cout << "Constructor" << endl;
     ixReadPageCounter = 0;
     ixWritePageCounter = 0;
     ixAppendPageCounter = 0;
