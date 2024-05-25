@@ -207,17 +207,41 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
     newLeafPageHeader.numEntries = currLeafPageHeader.numEntries - currNumEntries;
     newLeafPageHeader.next = UINT_MAX; // some number that we can't reach
     newLeafPageHeader.prev = currPageNum;
+
+    // loop to link leaves
+    if (currLeafPageHeader.next != UINT_MAX) {
+        void* linkPageData = malloc(PAGE_SIZE);
+        ixFileHandle.readPage(currPageNum, linkPageData); // start at current page
+        LeafPageHeader linkLeafPageHeader = getLeafPageHeader(linkPageData);
+        unsigned linkPageNum;
+        while (linkLeafPageHeader.next != UINT_MAX) {
+            linkPageNum = linkLeafPageHeader.next;
+            ixFileHandle.readPage(linkPageNum, linkPageData);
+            linkLeafPageHeader = getLeafPageHeader(linkPageData);
+        }
+        newLeafPageHeader.prev = linkPageNum;
+        linkLeafPageHeader.next = ixFileHandle.getNumberOfPages();
+        setLeafPageHeader(linkPageData, linkLeafPageHeader);
+    }
+    else {
+        currLeafPageHeader.next = ixFileHandle.getNumberOfPages();
+    }
+    
+    // now that you've adjusted
     setLeafPageHeader(newLeafData, newLeafPageHeader);
 
     // Split all the data that comes after offset into newLeafData
     memcpy((char*)newLeafData + sizeof(LeafPageHeader), (char*)currLeafData + offset, splitDataSize);
     
+    cout << "Splitting page. Curr PageNum: " << currPageNum << ", Prev total num pages: " << ixFileHandle.getNumberOfPages();
+
     ixFileHandle.appendPage(newLeafData);
+
+    cout << ", New total num pages: " << ixFileHandle.getNumberOfPages() << endl;
     
     // Update the current leaf page to remove everything that was split from the page
     currLeafPageHeader.numEntries = currNumEntries; 
     currLeafPageHeader.FSO = offset; 
-    currLeafPageHeader.next = ixFileHandle.getNumberOfPages();
     setLeafPageHeader(currLeafData, currLeafPageHeader);
     
     // remove everything after offset from currLeafData
@@ -578,6 +602,7 @@ RC IndexManager::insertInternalPair(void *pageData, const Attribute &attr, const
 RC IndexManager::insertLeafPair(void *pageData, const Attribute &attr, const void *key, const RID &rid) {
     //we don't want duplicates
     if (leafPairExists(pageData, key, rid, attr)) {
+        cout << "duplicate" << endl;
         return DUPLICATE;
     }
 
@@ -596,6 +621,7 @@ RC IndexManager::insertLeafPair(void *pageData, const Attribute &attr, const voi
         }
         offset += getKeyLength((char*)pageData + offset, attr) + sizeof(RID);
     }
+    // cout << "Offset: " << offset << endl;
 
     //for entires that come after, shift to the right
     unsigned shiftOffset = offset;
@@ -620,7 +646,7 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
         cout << "couldn't read page" << endl;
         return 1;
     }
-
+    // cout << "Flag: " << getFlag(pageData) << endl;
     //Internal Page
     
     RC rc;
@@ -663,7 +689,7 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
 
     //Leaf Page
     else if (getFlag(pageData) == LEAF) {
-        cout << "Got to leaf" << endl;
+        // cout << "i got to leaf" << endl;
         //try inserting and find out if there's free space
         rc = insertLeafPair(pageData, attr, key, rid);
         if (rc == DUPLICATE) {
@@ -711,13 +737,14 @@ RC IndexManager::insertEntry(IXFileHandle &ixfileHandle, const Attribute &attrib
 RC IndexManager::search(PageNum &pageNum, PageNum &resultPageNum, IXFileHandle &ixfileHandle, Attribute attribute, const void *searchKey) {
     void *pageData = malloc(PAGE_SIZE);
     ixfileHandle.readPage(pageNum, pageData);
+    
     if (getFlag(pageData) == LEAF) {
         resultPageNum = pageNum;
         return SUCCESS;
     }
 
     PageNum childPageNum = getChildPageNum(searchKey, pageData, attribute);
-    // cout << childPageNum << endl;
+    
     free(pageData);
     return search(childPageNum, resultPageNum, ixfileHandle, attribute, searchKey);
 }
@@ -923,7 +950,9 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
     // check if we need to read in a new page
     if (currEntry == totalNumEntries) { // then its time to read in a new page 
-        if (leafPageHeader.next == UINT_MAX || leafPageHeader.next == 0) {
+        cout << "Curr entry: " << currEntry << ", Total Entries: " << totalNumEntries << endl;
+        cout << "CurrPage:" << currPage <<  ", Leaf Page Header next: " << leafPageHeader.next << ", Leaf Page Header prev: " << leafPageHeader.prev << endl;
+        if (currPage == totalPage || leafPageHeader.next == UINT_MAX || leafPageHeader.next == 0) {
             free(currKey);
             return IX_EOF;
         }
