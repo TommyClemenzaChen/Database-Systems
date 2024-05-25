@@ -133,9 +133,9 @@ class IndexManager {
 
         unsigned getKeyLength(const void *key, const Attribute attr) const;
 
-        RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair);
+        RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle &ixFileHandle, Attribute attr, TrafficPair &trafficPair);
 
-        RC splitInternalPage(void *currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair);
+        RC splitInternalPage(void *currInternalData, unsigned currPageNum, IXFileHandle &ixFileHandle, Attribute attr, TrafficPair &trafficPair);
 
         // Initialize and IX_ScanIterator to support a range search
         RC scan(IXFileHandle &ixfileHandle,

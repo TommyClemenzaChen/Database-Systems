@@ -46,10 +46,10 @@ int testCase_6(const string &indexFileName, const Attribute &attribute)
 
         rc = indexManager->insertEntry(ixfileHandle, attribute, &key, rid);
         assert(rc == success && "indexManager::insertEntry() should not fail.");
+
         inRidSlotNumSum += rid.slotNum;
     }
 
-    cout << "Got out of insert. Total Num pages: " << ixfileHandle.getNumberOfPages() << endl;
     // Scan
     rc = indexManager->scan(ixfileHandle, attribute, NULL, NULL, true, true, ix_ScanIterator);
     assert(rc == success && "indexManager::scan() should not fail.");
@@ -59,13 +59,13 @@ int testCase_6(const string &indexFileName, const Attribute &attribute)
     while(ix_ScanIterator.getNextEntry(rid, &key) == success)
     {
         count++;
+
         if (rid.pageNum % 200 == 0) {
             cerr << count << " - Returned rid: " << rid.pageNum << " " << rid.slotNum << endl;
         }
         outRidSlotNumSum += rid.slotNum;
     }
 
-    cout << inRidSlotNumSum << " vs " << outRidSlotNumSum << endl;
     // Inconsistency between insert and scan?
     if (inRidSlotNumSum != outRidSlotNumSum)
     {
@@ -111,4 +111,3 @@ int main()
     }
 
 }
-

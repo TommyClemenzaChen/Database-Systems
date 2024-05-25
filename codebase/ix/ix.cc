@@ -144,7 +144,7 @@ PageNum IndexManager::getChildPageNum(const void *key, void *pageData, Attribute
         memcpy(&childPageNum, (char*)pageData + offset + keyLength, sizeof(PageNum));
     }
     
-    cout << "childPage: " << childPageNum << endl;
+    // cout << "childPage: " << childPageNum << endl;
     return childPageNum;
 }
 
@@ -177,7 +177,7 @@ unsigned IndexManager::getKeyLength(const void *key, const Attribute attr) const
     return keyLength;
 }
 
-RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair) {
+RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle &ixFileHandle, Attribute attr, TrafficPair &trafficPair) {
     LeafPageHeader currLeafPageHeader = getLeafPageHeader(currLeafData); 
     
     unsigned currNumEntries = 0;
@@ -258,7 +258,7 @@ RC IndexManager::splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileH
     return SUCCESS;
 }
 
-RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum, IXFileHandle ixFileHandle, Attribute attr, TrafficPair &trafficPair) {
+RC IndexManager::splitInternalPage(void * currInternalData, unsigned currPageNum, IXFileHandle &ixFileHandle, Attribute attr, TrafficPair &trafficPair) {
     InternalPageHeader currInternalPageHeader = getInternalPageHeader(currInternalData); 
     
     unsigned currNumEntries = 0;
@@ -359,18 +359,31 @@ int IndexManager::compareKeys(Attribute attr, const void* key1, const void* key2
     char* str1;
     char* str2;
 
+    // cout << "get in compare keys\n";
+    // unsigned keyLen = getKeyLength(key1, attr);
+    // unsigned temp;
+    // memcpy(&temp, (char*)key1 + sizeof(unsigned), 4+sizeof(RID));
+    // cout << "key1: " << temp << endl;
+
+    // keyLen = getKeyLength(key2, attr);
+    // unsigned pls = 0;
+    // memcpy(&pls, (char*)key2 + sizeof(unsigned), 4+sizeof(RID));
+    // cout << "lowKey: " << pls << endl;
+    
+
     switch (attr.type) {
         case TypeInt:
             memcpy(&valueInt1, key1, sizeof(int));
             
             memcpy(&valueInt2, key2, sizeof(int));
-            
-            if (valueInt1 < valueInt2)
+
+            if (valueInt1 < valueInt2) {
                 return -1;
-            else if (valueInt1 > valueInt2)
+            } else if (valueInt1 > valueInt2) {
                 return 1;
-            else
+            } else {
                 return 0;
+            }
 
         case TypeReal:
             memcpy(&valueFloat1, key1, sizeof(float));
@@ -385,7 +398,6 @@ int IndexManager::compareKeys(Attribute attr, const void* key1, const void* key2
                 return 0;
         
         case TypeVarChar:
-            
             memcpy(&stringLength1, key1, sizeof(int));
             str1 = (char*)malloc(stringLength1 + 1);
             memcpy(str1, (char*)key1 + sizeof(int), stringLength1);
@@ -1058,15 +1070,18 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
     leafPageHeader = _indexManager->getLeafPageHeader(_pageData);
     totalNumEntries = leafPageHeader.numEntries;
 
+    
     // if lowKey != NULL, get offset to be right where lowKey starts
     if (lowKey != NULL) {
         while (true) {
-            unsigned keyLength = _indexManager->getKeyLength((char*)_pageData+currOffset, attr);
+            unsigned keyLength = _indexManager->getKeyLength((char*)_pageData+currOffset, attribute);
             // currKey = malloc(keyLength); // is key already malloc'd?
             // memcpy(currKey, (char*)_pageData + currOffset, keyLength);
-            if(_indexManager->compareKeys(attr, (char*)_pageData + currOffset, lowKey) == 0 && lowKeyInclusive) {
+            // cout << "Does compareKeys return?" << endl;
+            if(_indexManager->compareKeys(attr, (char*)_pageData+currOffset, lowKey) == 0 && lowKeyInclusive) {
                 break;
             }
+            
             if (_indexManager->compareKeys(attr, (char*)_pageData+currOffset, lowKey) > 0 && !lowKeyInclusive) {
                 break;
             }
