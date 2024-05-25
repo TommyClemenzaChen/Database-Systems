@@ -188,7 +188,7 @@ unsigned FileHandle::getNumberOfPages()
 }
 
 
-RC FileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount)
+RC FileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount)  
 {
     readPageCount   = readPageCounter;
     writePageCount  = writePageCounter;

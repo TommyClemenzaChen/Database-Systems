@@ -459,8 +459,7 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
       const CompOp compOp,                  // comparision type such as "<" and "="
       const void *value,                    // used in the comparison
       const vector<string> &attributeNames, // a list of projected attributes
-      RBFM_ScanIterator &rbfm_ScanIterator)
-{
+      RBFM_ScanIterator &rbfm_ScanIterator) {
     return rbfm_ScanIterator.scanInit(fileHandle, recordDescriptor, conditionAttribute, compOp, value, attributeNames);
 }
 
