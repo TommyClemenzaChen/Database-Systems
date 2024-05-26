@@ -827,7 +827,7 @@ RC IndexManager::scan(IXFileHandle &ixfileHandle,
     return ix_ScanIterator.scanInit(ixfileHandle, attribute, lowKey, highKey, lowKeyInclusive, highKeyInclusive);
 }
 
-void IndexManager::printKey(const Attribute &attribute, void *pageData, unsigned offset) const {
+void IndexManager::printKey(const Attribute &attribute, void *pageData, unsigned offset) const{
     switch (attribute.type) {
         case TypeInt:
             int intKey;
@@ -849,6 +849,7 @@ void IndexManager::printKey(const Attribute &attribute, void *pageData, unsigned
             break;
     }
 
+    
 }
 
 void IndexManager::printRID(const Attribute &attribute, void *pageData, unsigned &offset) const{
@@ -856,6 +857,7 @@ void IndexManager::printRID(const Attribute &attribute, void *pageData, unsigned
     void *startKey = malloc(startKeyLength);
     memcpy(startKey, (char*)pageData + offset, startKeyLength);
 
+    cout << "[";
     RID rid;
     while (true) {
         memcpy(&rid, (char*)pageData + offset + startKeyLength, sizeof(RID));
@@ -872,29 +874,10 @@ void IndexManager::printRID(const Attribute &attribute, void *pageData, unsigned
 
         cout << ",";
     }
+
+    cout << offset;
 }
 
-void IndexManager::printInternalKeys(const Attribute &attribute, void *pageData) const {
-    InternalPageHeader internalPageHeader = getInternalPageHeader(pageData);
-    if (internalPageHeader.numEntries > 0) {
-        unsigned offset = sizeof(InternalPageHeader);
-        for (int i = 0; i < internalPageHeader.numEntries; i++) {
-            cout << "\"";
-            printKey(attribute, pageData, offset);
-            cout << "\"";
-            
-            if (i + 1 < internalPageHeader.numEntries) {
-                cout << ",";
-            }
-            
-            offset += getKeyLength((char*)pageData + offset, attribute) + sizeof(PageNum);
-        }
-    }
-
-    else {
-        cout << "";
-    }
-}
 
 void IndexManager::preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, int depth) const {
     void *pageData = malloc(PAGE_SIZE);
@@ -909,50 +892,25 @@ void IndexManager::preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const A
         for (int i = 0; i < leafPageHeader.numEntries; i++) {
             cout << "\"";
             printKey(attribute, pageData, offset);
-            cout << ":[";
+            cout << ":";
             
             printRID(attribute, pageData, offset);
             if (i + 1 >= leafPageHeader.numEntries) {
                 cout << "]}," << endl;
             }
         }
+        
     }
 
     else if (getFlag(pageData) == INTERNAL) {
-        cout << "\"keys\":[";
-        printInternalKeys(attribute, pageData);
-        cout << "]," << endl;
-
-
-        cout << "\"children\":[" << endl;
-
-        PageNum childPageNum;
         InternalPageHeader internalPageHeader = getInternalPageHeader(pageData);
         unsigned offset = sizeof(InternalPageHeader);
-        
-        if (internalPageHeader.numEntries > 0) {
-            for (int i = 0; i < internalPageHeader.numEntries + 1; i++) {
-                if (i == 0) {
-                    //preorder on left child page
-                    preorder(ixFileHandle, internalPageHeader.leftChildPage, attribute, depth + 1);
-                }
-
-                else {
-                    unsigned currKeyLength = getKeyLength((char*)pageData + offset, attribute);
-                    memcpy(&childPageNum, (char*)pageData + offset + currKeyLength, sizeof(PageNum));
-                    
-                    preorder(ixFileHandle, childPageNum, attribute, depth + 1);
-                    offset += currKeyLength + sizeof(PageNum);
-                }
-                
-            }
+        for (int i = 0; i < internalPageHeader.numEntries; i++) {
+            PageNum childPageNum ;
+            unsigned currKeyLength = getKeyLength((char*)pageData + offset, attribute);
+            memcpy(&childPageNum, (char*)pageData + offset + currKeyLength, sizeof(PageNum));
+            preorder(ixFileHandle, childPageNum, attribute, depth + 1);
         }
-
-        else {
-            //preorder on left child page
-            preorder(ixFileHandle, internalPageHeader.leftChildPage, attribute, depth + 1);
-        }
-
     }
 
     free(pageData);
@@ -1003,6 +961,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
     RID ridTemp = currRid;
 
     // cout << "Curr rid pageNum: " << currRid.pageNum << ", Curr rid slotNum: " << currRid.slotNum << endl;
+
     // cout << "Curr entry: " << currEntry << ", Total entries: " << totalNumEntries << endl;
 
     // cout << "fSO: " << leafPageHeader.FSO << ", CurrOffset: " << currOffset << endl;
@@ -1025,6 +984,10 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
     unsigned keyLength = _indexManager->getKeyLength((char*)_pageData+currOffset, attr);
     currKey = malloc(keyLength); // is key already malloc'd?
     memcpy(currKey, (char*)_pageData + currOffset, keyLength);
+
+    int intKey;
+    memcpy(&intKey, currKey, sizeof(int));
+    cout << "currKey (int): " << intKey << ", Entries: " << currEntry << endl;
 
     // Get currRid
     memcpy(&currRid, (char*)_pageData + currOffset + keyLength, sizeof(RID));
@@ -1052,7 +1015,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
     currEntry++;    
 
     if (currOffset > leafPageHeader.FSO) {
-        cout << "SHOULD get in here. Curr Page: " << currPage << ", Next page: " << leafPageHeader.next  << "total Num pages: " << totalPage << endl;
+        cout << "SHOULD get in here. Curr Page: " << currPage << ", Next page: " << leafPageHeader.next  << ", total Num pages: " << totalPage << endl;
         if (leafPageHeader.next != UINT_MAX) {
             cout << "currPge: " << currPage << endl;
             currPage = leafPageHeader.next;
@@ -1129,10 +1092,17 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
     
     leafPageHeader = _indexManager->getLeafPageHeader(_pageData);
     totalNumEntries = leafPageHeader.numEntries;
+
+    cout << "Page " << currPage << "'s totalEntries: " << totalNumEntries << endl;
     
     // if lowKey != NULL, get offset to be right where lowKey starts
     if (lowKey != NULL) {
-        /*for (unsigned i = 0; i <= totalNumEntries; i++)*/ while (true) {
+        while (true) {
+            // print previous key
+            int intKey;
+            memcpy(&intKey, (char*)_pageData+currOffset, sizeof(int));
+            cout << "currKey (int): " << intKey << ", Entries: " << currEntry << endl;
+
             unsigned keyLength = _indexManager->getKeyLength((char*)_pageData+currOffset, attr);
             if(_indexManager->compareKeys(attr, (char*)_pageData+currOffset, lowKey) == 0 && lowKeyInclusive) {
                 cout << "compareKey worked?\n";
@@ -1142,6 +1112,7 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
                 break;
             }
             currOffset += keyLength + sizeof(RID);
+            currEntry++;
             // cout << "currOffset: " << currOffset << ", leafPageHeader.FSO: " << leafPageHeader.FSO << endl;
             if (currOffset == leafPageHeader.FSO) {
                 // go to the next page
@@ -1151,14 +1122,15 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
                     ixfileHandle.readPage(currPage, _pageData);
                     leafPageHeader = _indexManager->getLeafPageHeader(_pageData);
                     totalNumEntries = leafPageHeader.numEntries;
-                    cout << "currPage: " << currPage << ", total entries: " << totalNumEntries << ", FSO: " << leafPageHeader.FSO << endl;
+                    cout << "currPage: " << currPage << ", currEntries: " << currEntry <<  ", total entries: " << totalNumEntries << ", FSO: " << leafPageHeader.FSO << endl;
                     currOffset = sizeof(LeafPageHeader);
+                    currEntry = 0;
                 }
                 else break;
             }
         }
     }
-    
+    cout << "CurrEntry going into getNextEntry: " << currEntry << endl;
     return SUCCESS;
 }
 

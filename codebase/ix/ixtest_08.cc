@@ -50,6 +50,10 @@ int testCase_8(const string &indexFileName, const Attribute &attribute)
         assert(rc == success && "indexManager::insertEntry() should not fail.");
     }
 
+    cout << "Inserting lowKey...\n";
+
+    cout << "Total size of entries = " << sizeof(int)+sizeof(RID) << ", Size of Page Header = " << sizeof(LeafPageHeader) << endl;
+    unsigned j = 0;
     // Insert more entries
     for(unsigned i = value; i < value + numOfMoreTuples; i++)
     {
@@ -61,8 +65,9 @@ int testCase_8(const string &indexFileName, const Attribute &attribute)
         assert(rc == success && "indexManager::insertEntry() should not fail.");
 
         inRidSlotNumSum += rid.slotNum;
+        j=i;
     }
-
+    cout << "i after loop: " << j << endl;
     cout << "Got out of insertEntry test" << endl;
 
     // Scan
