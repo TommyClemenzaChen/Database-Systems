@@ -71,6 +71,8 @@ int testCase_10(const string &indexFileName, const Attribute &attribute)
         outRidSlotNumSum += rid.slotNum;
     }
 
+    cout << inRidSlotNumSum << " vs. " << outRidSlotNumSum << endl;
+
     // Inconsistency?
     if (inRidSlotNumSum != outRidSlotNumSum)
     {

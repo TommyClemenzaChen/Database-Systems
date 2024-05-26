@@ -153,6 +153,7 @@ class IndexManager {
         // Print the B+ tree in pre-order (in a JSON record format)
         void preorder(IXFileHandle &ixFileHandle, PageNum pageNum, const Attribute &attribute, int depth) const;
         void printBtree(IXFileHandle &ixfileHandle, const Attribute &attribute) const;
+        void printInternalKeys(const Attribute &attribute, void *pageData) const;
         void printLeafPageHeader(LeafPageHeader leafPageHeader);
         void printInternalPageHeader(InternalPageHeader internalPageHeader);
         RC ixFileHandleExists(IXFileHandle &ixfileHandle);
