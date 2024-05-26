@@ -93,7 +93,7 @@ int testCase_8(const string &indexFileName, const Attribute &attribute)
         outRidSlotNumSum += rid.slotNum;
     }
 
-    cout << "inRidSlotNumSum: " << inRidSlotNumSum << "outRidSlotNumSum: " << outRidSlotNumSum << endl;
+    cout << "inRidSlotNumSum: " << inRidSlotNumSum << ", outRidSlotNumSum: " << outRidSlotNumSum << endl;
     // Inconsistency check
     if (inRidSlotNumSum != outRidSlotNumSum)
     {

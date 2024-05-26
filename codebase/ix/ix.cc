@@ -963,6 +963,8 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
     cout << "Curr rid pageNum: " << currRid.pageNum << ", Curr rid slotNum: " << currRid.slotNum << endl;
     cout << "Curr entry: " << currEntry << ", Total entries: " << totalNumEntries << endl;
 
+    cout << "fSO: " << leafPageHeader.FSO << ", CurrOffset: " << currOffset << endl;
+    
     // check if we need to read in a new page
     if (currEntry == totalNumEntries) { // then its time to read in a new page 
         if (currPage == totalPage || leafPageHeader.next == UINT_MAX || leafPageHeader.next == 0) {
@@ -1006,6 +1008,22 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
     currOffset += _indexManager->getKeyLength((char*)_pageData+currOffset, attr) + sizeof(RID); 
     currEntry++;    
+
+    if (currOffset > leafPageHeader.FSO) {
+        cout << "SHOULD get in here. Curr Page: " << currPage << ", Next page: " << leafPageHeader.next  << "total Num pages: " << totalPage << endl;
+        if (leafPageHeader.next != UINT_MAX) {
+            cout << "currPge: " << currPage << endl;
+            currPage = leafPageHeader.next;
+            ixfileHandle.readPage(currPage, _pageData); // read in next Page
+            leafPageHeader = _indexManager->getLeafPageHeader(_pageData); // store newest leafPageHeader
+            totalNumEntries = leafPageHeader.numEntries;
+            currEntry = 0;
+            currOffset = sizeof(LeafPageHeader);
+        }
+        else {
+            return IX_EOF; // end I think??
+        }
+    }
 
     return SUCCESS;
 }
