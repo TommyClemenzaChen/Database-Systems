@@ -225,26 +225,25 @@ class IX_ScanIterator {
         
         void *_pageData;
 
-        unsigned currOffset;
-        unsigned currPage;
-        unsigned totalNumEntries;
+        unsigned _currOffset;
+        unsigned _currPageNum;
+        unsigned _currEntryNum;
+        unsigned _totalNumEntries;
 
-        unsigned currEntry;
+        unsigned _totalPages;
 
-        unsigned totalPage;
+        void *_currKey;
+        RID _currRID;
 
-        void* currKey;
-        RID currRid;
+        Attribute _attr;
+        IXFileHandle _ixfileHandle;
 
-        Attribute attr;
-        IXFileHandle ixfileHandle;
+        LeafPageHeader _leafPageHeader;
 
-        const void *lowKey;
-        const void *highKey;
-        bool lowKeyInclusive;
-        bool highKeyInclusive;
-
-        LeafPageHeader leafPageHeader;
+        const void *_lowKey;
+        const void *_highKey;
+        bool _lowKeyInclusive;
+        bool _highKeyInclusive;
 
         RC scanInit(IXFileHandle &ixfileHandle,
         const Attribute &attribute,
