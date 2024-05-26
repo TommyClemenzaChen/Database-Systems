@@ -77,12 +77,13 @@ int testCase_8(const string &indexFileName, const Attribute &attribute)
     while(ix_ScanIterator.getNextEntry(rid, &key) == success)
     {
         count++;
-
+        cout << count << " - Returned rid: " << rid.pageNum << " " << rid.slotNum << endl;
         if (rid.pageNum % 100 == 0) {
             cerr << count << " - Returned rid: " << rid.pageNum << " " << rid.slotNum << endl;
         }
         if (rid.pageNum < value || rid.slotNum < value * 3)
         {
+            cerr << count << " - Returned rid: " << rid.pageNum << " " << rid.slotNum << endl;
             cerr << "Wrong entries output... The test failed" << endl;
             rc = ix_ScanIterator.close();
             rc = indexManager->closeFile(ixfileHandle);
@@ -92,6 +93,7 @@ int testCase_8(const string &indexFileName, const Attribute &attribute)
         outRidSlotNumSum += rid.slotNum;
     }
 
+    cout << "inRidSlotNumSum: " << inRidSlotNumSum << "outRidSlotNumSum: " << outRidSlotNumSum << endl;
     // Inconsistency check
     if (inRidSlotNumSum != outRidSlotNumSum)
     {

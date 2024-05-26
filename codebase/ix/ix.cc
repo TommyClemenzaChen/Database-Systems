@@ -960,6 +960,9 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
     void * temp = currKey;
     RID ridTemp = currRid;
 
+    cout << "Curr rid pageNum: " << currRid.pageNum << ", Curr rid slotNum: " << currRid.slotNum << endl;
+    cout << "Curr entry: " << currEntry << ", Total entries: " << totalNumEntries << endl;
+
     // check if we need to read in a new page
     if (currEntry == totalNumEntries) { // then its time to read in a new page 
         if (currPage == totalPage || leafPageHeader.next == UINT_MAX || leafPageHeader.next == 0) {
@@ -987,13 +990,13 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
         if (_indexManager->compareKeys(attr, currKey, highKey) == 0 && !highKeyInclusive) {
             key = temp;
             rid = ridTemp;
-            free(currKey);
+            // free(currKey);
             return IX_EOF;
         }
         else if (_indexManager->compareKeys(attr, currKey, highKey) == 0 ) {
             key = currKey;
             rid = currRid;
-            free(currKey);
+            // free(currKey);
             return IX_EOF;
         }
     }
@@ -1003,7 +1006,6 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
 
     currOffset += _indexManager->getKeyLength((char*)_pageData+currOffset, attr) + sizeof(RID); 
     currEntry++;    
-
 
     return SUCCESS;
 }
@@ -1048,44 +1050,56 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
     lowKeyInclusive = lKI;
     highKeyInclusive = hKI;
 
-    totalPage = ixFh.getNumberOfPages();
-    // read in the page
-    if (totalPage > 0) {
-        if (ixFh.readPage(currPage, _pageData)) {
-            RBFM_READ_FAILED;
-        }
-    } else 
-        return SUCCESS;
-
-
     PageNum rootNum = _indexManager->getRootPageNum(ixfileHandle);
 
-
+    
     if (lowKey == NULL) {
         PageNum rootNum = _indexManager->getRootPageNum(ixfileHandle);
         getFirstLeafPage(rootNum, currPage);
-    } else 
-        _indexManager->search(rootNum, currPage, ixfileHandle, attr, lowKey);
-
+    } else {_indexManager->search(rootNum, currPage, ixfileHandle, attr, lowKey);}
+    
+        totalPage = ixFh.getNumberOfPages();
+        // read in the page
+        if (totalPage > 0) {
+            if (ixFh.readPage(currPage, _pageData)) {
+                RBFM_READ_FAILED;
+            }
+        } else 
+            return SUCCESS;
+    
     leafPageHeader = _indexManager->getLeafPageHeader(_pageData);
     totalNumEntries = leafPageHeader.numEntries;
-
     
     // if lowKey != NULL, get offset to be right where lowKey starts
     if (lowKey != NULL) {
-        while (true) {
-            unsigned keyLength = _indexManager->getKeyLength((char*)_pageData+currOffset, attribute);
-            // currKey = malloc(keyLength); // is key already malloc'd?
-            // memcpy(currKey, (char*)_pageData + currOffset, keyLength);
-            // cout << "Does compareKeys return?" << endl;
+        /*for (unsigned i = 0; i <= totalNumEntries; i++)*/ while (true) {
+            unsigned keyLength = _indexManager->getKeyLength((char*)_pageData+currOffset, attr);
             if(_indexManager->compareKeys(attr, (char*)_pageData+currOffset, lowKey) == 0 && lowKeyInclusive) {
                 break;
             }
-            
             if (_indexManager->compareKeys(attr, (char*)_pageData+currOffset, lowKey) > 0 && !lowKeyInclusive) {
                 break;
             }
             currOffset += keyLength + sizeof(RID);
+            cout << "currOffset: " << currOffset << ", leafPageHeader.FSO: " << leafPageHeader.FSO << endl;
+            if (currOffset == leafPageHeader.FSO) {
+                cout << "get in here" << endl;
+                cout << "leafPageHeader.next: " << leafPageHeader.next << endl;
+                // break;
+                // go to the next page
+                if (leafPageHeader.next != UINT_MAX) {
+                    
+                    currPage = leafPageHeader.next;
+                    ixfileHandle.readPage(currPage, _pageData);
+                    leafPageHeader = _indexManager->getLeafPageHeader(_pageData);
+                    totalNumEntries = leafPageHeader.numEntries;
+                    cout << "currPage: " << currPage << ", total entries: " << totalNumEntries << ", FSO: " << leafPageHeader.FSO << endl;
+                    currOffset = sizeof(LeafPageHeader);
+                    // break;
+                }
+                else break;
+                cout << "In reset, currPage: " << endl;
+            }
         }
     }
     
