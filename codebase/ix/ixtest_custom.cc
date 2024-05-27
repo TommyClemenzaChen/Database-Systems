@@ -58,7 +58,9 @@ int testSplitLeafPage(const string &indexFileName, const Attribute &attribute) {
     // Update the leaf page header
     memcpy(data, &leafPageHeader, sizeof(LeafPageHeader));
 
-    indexManager->splitLeafPage(data, 3, ixfileHandle, attribute, trafficPair);
+    void* key = NULL;
+    bool yourMom = false;
+    indexManager->splitLeafPage(data, 3, ixfileHandle, attribute, trafficPair, key, yourMom);
 
     char *temp = (char*)malloc(10);
     memcpy(temp, (char*)trafficPair.key + sizeof(int), 9);
