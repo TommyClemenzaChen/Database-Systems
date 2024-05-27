@@ -1,28 +1,45 @@
 1. Basic information
-Team number (e.g., 01) : 
-#1 Student ID : 
-#1 Student Name : 
-#2 Student ID : 
-#2 Student Name : 
+Team number (e.g., 01) : 6
+#1 Student ID : ljquirog  
+#1 Student Name : Lola Quiroga  
+#2 Student ID : mchen201    
+#2 Student Name : Matthew Chen
 
 2. Meta-data page in an index file
-- Show your meta-data page of an index design, if you have any. 
+- Show your meta-data page of an index design, if you have any.
+
+The meta-data page in our index file is always page 0, and it only contains an integer (4 bytes)
+denoting the root page number.
 
 
 3. Index Entry Format
 - Show your design for index entries (data structure). 
 
+There are two different index entries, and both use a struct to store fields. We implemented a "linked list" 
+format in each index leaf page.
+
 
 4. Page Format
 - Show your internal-page (non-leaf node) design.
 
+For each internal page, there is an internal page header which has fields such as numEntries, leftChildPage, 
+free space offset, and a flag. The flag is used so that the search function can understand what type of page
+it's reading.
+
 - Show your leaf-page (leaf node) design.
 
+For each leaf page, there is a leaf page header which has fields such as numEntries, free space offset, next leaf page, 
+prev leaf page, and a flag. 
 
 5. Implementation Detail
 
 - Provide  implementation details, including how you handle insertions (including splits), and how you handle deletion using lazy deletion.
 
+Our insert follows the pseudocode provided by Utkarsh, and it utilizes recursive inserts to insert all
+splits and appropriate traffic cops. For deletion, we use lazy deletion by simply overwriting the index
+that matches the key and we don't update any traffic pair values if the key we deleted was pointed to by a traffic pair.
+This makes the overall logic much easier since we just need to handle overwriting keys and don't have to trace
+the entire tree to update other values or merge pages.
 
 6. Other (optional)
 - Freely use this section to tell us about things that are related to Project3, but are not described in other sections of this report (optional).
