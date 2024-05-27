@@ -82,6 +82,8 @@ int testCase_9(const string &indexFileName, const Attribute &attribute) {
         outRidSlotNumSum += rid.slotNum;
     }
 
+    cout << inRidSlotNumSum << " vs " << outRidSlotNumSum << endl;
+    
     // Inconsistency between input and output?
     if (inRidSlotNumSum != outRidSlotNumSum) {
         cerr << "Wrong entries output... The test failed" << endl;

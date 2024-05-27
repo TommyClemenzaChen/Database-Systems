@@ -762,12 +762,10 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
     }
     // Leaf Page
     else if (getFlag(pageData) == LEAF) {
-        cout << "in leaf, pageNum: " << pageNum << endl;
         // try inserting and find out if there's free space
         unsigned resultPageNum = 0;
         findPage(ixfileHandle, pageNum, resultPageNum, key, attr);
         pageNum = resultPageNum;
-        cout << "resultPageNum: " << resultPageNum << endl;
 
         ixfileHandle.readPage(resultPageNum, pageData);
 
@@ -789,7 +787,6 @@ RC IndexManager::insert(IXFileHandle &ixfileHandle, const Attribute &attr, const
             if (!readNewPage) {
                 ixfileHandle.readPage(trafficPair.pageNum, pageData);
                 pageNum = trafficPair.pageNum;
-                cout << "gets here\n";
             } // THIS WORKS MUAHAHAH
 
             // try inserting again after splitting
@@ -1046,7 +1043,10 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
     // check if we need to read in a new page
     if (currEntry == totalNumEntries) { // then its time to read in a new page 
         if (currPage == totalPage || leafPageHeader.next == UINT_MAX || leafPageHeader.next == 0) {
-            free(currKey);
+            // free(currKey);
+            currKey = NULL;
+            currRid.slotNum = NULL;
+            currRid.pageNum = NULL;
             return IX_EOF;
         }
         currPage = leafPageHeader.next;
@@ -1069,15 +1069,18 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
     // Get currRid
     memcpy(&currRid, (char*)_pageData + currOffset + keyLength, sizeof(RID));
 
+  
     // For each key, call compareKey on currKey, highKey if (highKey != NULL)
     if (highKey != NULL) {
-        if (_indexManager->compareKeys(attr, currKey, highKey) == 0 && !highKeyInclusive) {
+        if (_indexManager->compareKeys(attr, currKey, highKey) >= 0 && !highKeyInclusive) {
+            cout << "get to hk?\n";
             key = temp;
             rid = ridTemp;
             // free(currKey);
             return IX_EOF;
         }
-        else if (_indexManager->compareKeys(attr, currKey, highKey) == 0 ) {
+        else if (_indexManager->compareKeys(attr, currKey, highKey) >= 0) {
+            cout << "get to hk?\n";
             key = currKey;
             rid = currRid;
             // free(currKey);
@@ -1085,6 +1088,7 @@ RC IX_ScanIterator::getNextEntry(RID &rid, void *key)
         }
     }
     
+
     key = currKey;
     rid = currRid;
 
@@ -1170,7 +1174,7 @@ RC IX_ScanIterator::scanInit(IXFileHandle &ixFh, const Attribute &attribute, con
     leafPageHeader = _indexManager->getLeafPageHeader(_pageData);
     totalNumEntries = leafPageHeader.numEntries;
 
-    cout << "Page " << currPage << "'s totalEntries: " << totalNumEntries << endl;
+    // cout << "Page " << currPage << "'s totalEntries: " << totalNumEntries << endl;
     
     // if lowKey != NULL, get offset to be right where lowKey starts
     if (lowKey != NULL) {
