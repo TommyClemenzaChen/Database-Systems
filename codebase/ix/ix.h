@@ -31,7 +31,8 @@ typedef enum {
 
 typedef enum {
     INTERNAL = 0,
-    LEAF = 1
+    LEAF = 1,
+    UNKNOWN = 2
 } Flag;
 
 typedef struct MetaPageHeader{
@@ -137,7 +138,7 @@ class IndexManager {
 
         RC splitLeafPage(void *currLeafData, unsigned currPageNum, IXFileHandle &ixFileHandle, Attribute attr, TrafficPair &trafficPair, const void* key, bool readNewPage);
 
-        RC splitInternalPage(void *currInternalData, unsigned currPageNum, IXFileHandle &ixFileHandle, Attribute attr, TrafficPair &trafficPair);
+        RC splitInternalPage(void * currInternalData, unsigned currPageNum, IXFileHandle &ixFileHandle, Attribute attr, TrafficPair &trafficPair, const void* key, bool readNewPage);
 
         // Initialize and IX_ScanIterator to support a range search
         RC scan(IXFileHandle &ixfileHandle,

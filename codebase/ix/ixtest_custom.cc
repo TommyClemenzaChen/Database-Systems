@@ -125,8 +125,10 @@ int testSplitInternalPage(const string &indexFileName, const Attribute &attribut
     // Update the leaf page header
     memcpy(data, &internalPageHeader, sizeof(internalPageHeader));
 
+    void* key = NULL;
+    bool yourMom = false;
     
-    indexManager->splitInternalPage(data, 1, ixfileHandle, attribute, trafficPair);
+    indexManager->splitInternalPage(data, 1, ixfileHandle, attribute, trafficPair, key, yourMom);
 
     unsigned rootPageNum = indexManager->getRootPageNum(ixfileHandle);
 
