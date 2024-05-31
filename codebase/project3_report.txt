@@ -9,27 +9,31 @@ Team number (e.g., 01) : 6
 - Show your meta-data page of an index design, if you have any.
 
 The meta-data page in our index file is always page 0, and it only contains an integer (4 bytes)
-denoting the root page number.
+denoting the root page number. 
 
 
 3. Index Entry Format
 - Show your design for index entries (data structure). 
 
-There are two different index entries, and both use a struct to store fields. We implemented a "linked list" 
-format in each index leaf page.
-
+There are two different types of entry formats. For all internal pages, there are key, pageNum pair index entries that 
+used as "traffic cops" to guide different functions to find the correct leaf page. Then, at each leaf page we have key, RID
+pairs that are used for scan iterator to loop through and return the correct rid. These are stored in different internal and 
+leaf pages, and each page can store up to 4096 bytes. We did not use any particualr data structures for this project and instead
+kept everything organized using structs in the header file. 
 
 4. Page Format
 - Show your internal-page (non-leaf node) design.
 
 For each internal page, there is an internal page header which has fields such as numEntries, leftChildPage, 
 free space offset, and a flag. The flag is used so that the search function can understand what type of page
-it's reading.
+it's reading. 
 
 - Show your leaf-page (leaf node) design.
 
 For each leaf page, there is a leaf page header which has fields such as numEntries, free space offset, next leaf page, 
-prev leaf page, and a flag. 
+prev leaf page, and a flag. All of the leaves are linked together in order for scan to be able to start at the best leaf page
+and eventually end at page that stops at highkey. Leaf pages have a flag that returns LEAF in order for search and scan functions
+to check whether or not a page is a valid leaf page.
 
 5. Implementation Detail
 
@@ -44,3 +48,5 @@ the entire tree to update other values or merge pages.
 6. Other (optional)
 - Freely use this section to tell us about things that are related to Project3, but are not described in other sections of this report (optional).
 
+We believe there is a problem with the way we are getting the childPageNum of each internal page because for some reason our inserts stop halfway
+whenever we split pages.

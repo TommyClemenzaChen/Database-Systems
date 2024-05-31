@@ -13,7 +13,7 @@ void prepareKeyAndRid(const unsigned count, const unsigned i, char* key, RID &ri
     *(int *)key = count;
     for(unsigned j = 0; j < count; j++)
     {
-        key[4 + j] = 'a' + i - 1;
+        *(key+4+j) = 96+i;
     }
     rid.pageNum = i;
     rid.slotNum = i;
@@ -30,7 +30,7 @@ int testCase_14(const string &indexFileName,
     // 5. Insert one more entries to watch the shape of the BTree
     // 6. CloseIndex
     // 7. DestroyIndex
-    cerr << endl << "***** In IX Test Case 14 *****" << endl;
+	cerr << endl << "***** In IX Test Case 14 *****" << endl;
 
     RID rid;
     IXFileHandle ixfileHandle;
@@ -51,7 +51,7 @@ int testCase_14(const string &indexFileName,
     unsigned i = 1;
     for(; i <= numOfTuples; i++)
     {
-        // Prepare a key
+    	// Prepare a key
         prepareKeyAndRid(count, i, key, rid);
 
         rc = indexManager->insertEntry(ixfileHandle, attribute, &key, rid);
@@ -59,7 +59,7 @@ int testCase_14(const string &indexFileName,
 
         if (i == 5) {
             // print BTree, by this time the BTree should have 2 level - one root (c*) with two leaf nodes (a*b*, c*d*e*)
-            cerr << endl;
+        	cerr << endl;
             indexManager->printBtree(ixfileHandle, attribute);
             cerr << endl;
         }
