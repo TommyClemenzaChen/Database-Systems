@@ -21,7 +21,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-cd rbf
+cd qe
 if [ $? -ne 0 ]; then
     echo "[ERROR] The directory structure is not correct. Please fix it!"
     echo
@@ -31,30 +31,11 @@ fi
 make clean
 make
 
-cd ../ix
-if [ $? -ne 0 ]; then
-    echo "[ERROR] The directory structure is not correct. Please fix it!"
-    echo
-    exit 1
-fi
-
-make clean
-make
-
-./ixtest_01
-./ixtest_02
-./ixtest_03
-./ixtest_04
-./ixtest_05
-./ixtest_06
-./ixtest_07
-./ixtest_08
-./ixtest_09
-./ixtest_10
-./ixtest_11
-./ixtest_12
-./ixtest_13
-./ixtest_14
-./ixtest_15
-./ixtest_extra_02
-
+./qetest_01
+./qetest_02
+./qetest_03
+./qetest_04
+./qetest_05
+./qetest_06
+./qetest_09
+./qetest_10
