@@ -86,7 +86,7 @@ class IndexManager {
 
         RC insertLeafPair(IXFileHandle &ixfileHandle, void *pageData, const Attribute &attr, const void *key, const RID &rid);
 
-        RC insert(IXFileHandle &ixfileHandle, const Attribute &attr, const void *key, const RID &rid, unsigned pageNum, TrafficPair &trafficPair);
+        RC insert(IXFileHandle &ixfileHandle, const Attribute &attr, const void *key, const RID &rid, unsigned &pageNum, TrafficPair &trafficPair);
 
         // Insert an entry into the given index that is indicated by the given ixfileHandle.
         RC insertEntry(IXFileHandle &ixfileHandle, const Attribute &attribute, const void *key, const RID &rid);

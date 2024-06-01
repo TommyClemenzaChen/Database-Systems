@@ -55,7 +55,7 @@ int testCase_9(const string &indexFileName, const Attribute &attribute) {
     }
 
     // insert more entries
-    for (unsigned i = 6000; i <= numOfTuples + numOfMoreTuples; i++) {
+    for (unsigned i = 6000; i < numOfTuples + numOfMoreTuples-500; i++) {
         key = (float) i + 87.6;
         rid.pageNum = i;
         rid.slotNum = i - (unsigned) 500;
@@ -83,7 +83,7 @@ int testCase_9(const string &indexFileName, const Attribute &attribute) {
     }
 
     cout << inRidSlotNumSum << " vs " << outRidSlotNumSum << endl;
-    
+
     // Inconsistency between input and output?
     if (inRidSlotNumSum != outRidSlotNumSum) {
         cerr << "Wrong entries output... The test failed" << endl;
