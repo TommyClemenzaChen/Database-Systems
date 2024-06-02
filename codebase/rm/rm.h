@@ -118,7 +118,18 @@ public:
       const void *value,                    // used in the comparison
       const vector<string> &attributeNames, // a list of projected attributes
       RM_ScanIterator &rm_ScanIterator);
+    
+  RC createIndex(const string &tableName, const string &attributeName);
 
+  RC destroyIndex(const string &tableName, const string &attributeName);
+
+  RC indexScan(const string &tableName,
+                  const string &attributeName,
+                  const void *lowKey,
+                  const void *highKey,
+                  bool lowKeyInclusive,
+                  bool highKeyInclusive,
+                  RM_IndexScanIterator &rm_IndexScanIterator);
 
 protected:
   RelationManager();
