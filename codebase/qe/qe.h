@@ -32,7 +32,6 @@ struct Condition {
     Value   rhsValue;       // right-hand side value if bRhsIsAttr = FALSE
 };
 
-
 class Iterator {
     // All the relational operators and access methods are iterators.
     public:
@@ -40,7 +39,6 @@ class Iterator {
         virtual void getAttributes(vector<Attribute> &attrs) const = 0;
         virtual ~Iterator() {};
 };
-
 
 class TableScan : public Iterator
 {
@@ -131,7 +129,6 @@ class IndexScan : public Iterator
         	// Set members
         	this->tableName = tableName;
         	this->attrName = attrName;
-
 
             // Get Attributes from RM
             rm.getAttributes(tableName, attrs);
@@ -230,6 +227,5 @@ class INLJoin : public Iterator {
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const{};
 };
-
 
 #endif

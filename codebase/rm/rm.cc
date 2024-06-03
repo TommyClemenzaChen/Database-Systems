@@ -15,7 +15,8 @@ RelationManager* RelationManager::instance()
 }
 
 RelationManager::RelationManager()
-: tableDescriptor(createTableDescriptor()), columnDescriptor(createColumnDescriptor())
+: tableDescriptor(createTableDescriptor()), columnDescriptor(createColumnDescriptor()),
+    indexDescriptor(createIndexDescriptor())
 {
 }
 
@@ -42,6 +43,11 @@ RC RelationManager::createCatalog()
     rc = insertTable(COLUMNS_TABLE_ID, 1, COLUMNS_TABLE_NAME);
     if (rc)
         return rc;
+    
+    //Add "indexes" table to tables 
+    rc = insertTable(TABLES_TABLE_ID, 1, INDEXES_TABLE_NAME);
+    if (rc)
+        return rc;
 
 
     // Add entries for tables and columns to Columns table
@@ -50,6 +56,11 @@ RC RelationManager::createCatalog()
         return rc;
     rc = insertColumns(COLUMNS_TABLE_ID, columnDescriptor);
     if (rc)
+        return rc;
+
+    //Add entries for "indexes" to Columns table
+    rc = insertColumns(INDEXES_TABLE_ID, indexDescriptor);
+    if (rc) 
         return rc;
 
     return SUCCESS;
@@ -118,7 +129,7 @@ RC RelationManager::deleteTable(const string &tableName)
     rc = rbfm->destroyFile(getFileName(tableName));
     if (rc)
         return rc;
-
+    
     // Grab the table ID
     int32_t id;
     rc = getTableID(tableName, id);
@@ -494,6 +505,44 @@ vector<Attribute> RelationManager::createColumnDescriptor()
     return cd;
 }
 
+vector<Attribute> RelationManager::createIndexDescriptor()
+{
+    vector<Attribute> indexDescriptor;
+
+    Attribute attr;
+    attr.name = INDEXES_COL_TABLE_ID;
+    attr.type = TypeInt;
+    attr.length = (AttrLength)INT_SIZE;
+    indexDescriptor.push_back(attr);
+
+    attr.name = INDEXES_COL_TABLE_NAME;
+    attr.type = TypeVarChar;
+    attr.length = (AttrLength)INDEXES_COL_TABLE_NAME_SIZE;
+    indexDescriptor.push_back(attr);
+
+    attr.name = INDEXES_COL_ATTR_NAME;
+    attr.type = TypeVarChar;
+    attr.length = (AttrLength)INDEXES_COL_ATTR_NAME_SIZE;
+    indexDescriptor.push_back(attr);
+
+    attr.name = INDEXES_COL_ATTR_TYPE;
+    attr.type = TypeInt;
+    attr.length = 4;
+    indexDescriptor.push_back(attr);
+
+    attr.name = INDEXES_COL_ATTR_LENGTH;
+    attr.type = TypeInt;
+    attr.length = 4;
+    indexDescriptor.push_back(attr);
+
+    attr.name = INDEXES_COL_RBF_FILE_NAME;
+    attr.type = TypeVarChar;
+    attr.length = (AttrLength)INDEXES_COL_RBF_FILE_NAME_SIZE;
+    indexDescriptor.push_back(attr);
+
+    return indexDescriptor;
+}
+
 // Creates the Tables table entry for the given id and tableName
 // Assumes fileName is just tableName + file extension
 void RelationManager::prepareTablesRecordData(int32_t id, bool system, const string &tableName, void *data)
@@ -808,6 +857,54 @@ void RelationManager::fromAPI(float &real, void *data)
     memcpy(&tmp, (char*) data + 1, REAL_SIZE);
     
     real = tmp;
+}
+
+// Proj4 Stuff ///////////////////
+RC RelationManager::createIndex(const string &tableName, const string &attributeName) {
+    int32_t tableID;
+    if (getTableID(tableName, tableID) != SUCCESS) {
+        cout << "table doesn't exist!!!" << endl;
+        return FAIL;
+    }
+    vector<Attribute> indexDescriptor;
+    if (getAttributes(tableName, indexDescriptor) != SUCCESS) {
+        cout << "can't get attributes" << endl;
+        return FAIL;
+    }
+
+    //check to see if attributeName is a valid attribute
+    for (int i = 0; i < indexDescriptor.size(); i++) {
+        cout << indexDescriptor[i].name << endl;
+    }
+
+    IndexManager *im = IndexManager::instance();
+
+    string indexName = tableName + "." + attributeName;
+    im->createFile(indexName);
+
+    //add new index table entries to catalog
+    int32_t table_id;
+    getNextTableID(table_id);
+
+    insertTable(table_id, 0, indexName);
+
+    return SUCCESS;
+}
+
+RC RelationManager::destroyIndex(const string &tableName, const string &attributeName) {
+    return SUCCESS;
+}
+
+RC RelationManager::indexScan(const string &tableName,
+    const string &attributeName,
+    const void *lowKey,
+    const void *highKey,
+    bool lowKeyInclusive,
+    bool highKeyInclusive,
+    RM_IndexScanIterator &rm_IndexScanIterator) 
+{
+    
+
 }
 
 // RM_ScanIterator ///////////////

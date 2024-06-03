@@ -3,8 +3,10 @@
 
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "../rbf/rbfm.h"
+#include "../ix/ix.h"
 
 using namespace std;
 
@@ -40,10 +42,25 @@ using namespace std;
 // 1 null byte, 4 integer fields and a varchar
 #define COLUMNS_RECORD_DATA_SIZE 1 + 5 * INT_SIZE + COLUMNS_COL_COLUMN_NAME_SIZE
 
+#define INDEXES_TABLE_NAME            "Indexes"
+#define INDEXES_TABLE_ID              3
+
+#define INDEXES_COL_TABLE_ID          "table-id"
+#define INDEXES_COL_TABLE_NAME        "table-name"
+#define INDEXES_COL_ATTR_NAME         "attr-name"
+#define INDEXES_COL_ATTR_TYPE         "attr-type"
+#define INDEXES_COL_ATTR_LENGTH       "attr-length"
+#define INDEXES_COL_RBF_FILE_NAME     "rbf-file-name"
+#define INDEXES_COL_TABLE_NAME_SIZE 50
+#define INDEXES_COL_ATTR_NAME_SIZE 50
+#define INDEXES_COL_RBF_FILE_NAME_SIZE 50
+
 # define RM_EOF (-1)  // end of a scan operator
 
 #define RM_CANNOT_MOD_SYS_TBL 1
 #define RM_NULL_COLUMN        2
+
+#define FAIL  UINT_MAX
 
 typedef struct IndexedAttr
 {
@@ -135,10 +152,13 @@ protected:
   RelationManager();
   ~RelationManager();
 
+friend class IndexManager;
+
 private:
   static RelationManager *_rm;
   const vector<Attribute> tableDescriptor;
   const vector<Attribute> columnDescriptor;
+  const vector<Attribute> indexDescriptor;
 
   // Convert tableName to file name (append extension)
   static string getFileName(const char *tableName);
@@ -147,6 +167,7 @@ private:
   // Create recordDescriptor for Table/Column tables
   static vector<Attribute> createTableDescriptor();
   static vector<Attribute> createColumnDescriptor();
+  static vector<Attribute> createIndexDescriptor();
 
   // Prepare an entry for the Table/Column table
   void prepareTablesRecordData(int32_t id, bool system, const string &tableName, void *data);

@@ -1118,3 +1118,4 @@ void RecordBasedFileManager::getAttributeFromRecord(void *page, unsigned offset,
     // For all types, we then copy the data into the result
     memcpy((char*)data + data_offset, start + attrStart, len);
 }
+
