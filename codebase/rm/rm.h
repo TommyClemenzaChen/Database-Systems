@@ -152,7 +152,7 @@ protected:
   RelationManager();
   ~RelationManager();
 
-friend class IndexManager;
+
 
 private:
   static RelationManager *_rm;

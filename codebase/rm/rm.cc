@@ -876,7 +876,8 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
     for (int i = 0; i < indexDescriptor.size(); i++) {
         cout << indexDescriptor[i].name << endl;
     }
-
+    return SUCCESS;
+    
     IndexManager *im = IndexManager::instance();
 
     string indexName = tableName + "." + attributeName;
@@ -889,6 +890,7 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
     insertTable(table_id, 0, indexName);
 
     return SUCCESS;
+    
 }
 
 RC RelationManager::destroyIndex(const string &tableName, const string &attributeName) {
