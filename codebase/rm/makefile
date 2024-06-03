@@ -35,6 +35,7 @@ rmtest_00: rmtest_00.o librm.a $(CODEROOT)/rbf/librbf.a $(CODEROOT)/ix/libix.a
 rmtest_01: rmtest_01.o librm.a $(CODEROOT)/rbf/librbf.a $(CODEROOT)/ix/libix.a
 rmtest_02: rmtest_02.o librm.a $(CODEROOT)/rbf/librbf.a $(CODEROOT)/ix/libix.a
 rmtest_03: rmtest_03.o librm.a $(CODEROOT)/rbf/librbf.a $(CODEROOT)/ix/libix.a
+rmtest_04: rmtest_04.o librm.a $(CODEROOT)/rbf/librbf.a $(CODEROOT)/ix/libix.a
 rmtest_05: rmtest_05.o librm.a $(CODEROOT)/rbf/librbf.a $(CODEROOT)/ix/libix.a
 rmtest_06: rmtest_06.o librm.a $(CODEROOT)/rbf/librbf.a $(CODEROOT)/ix/libix.a
 rmtest_07: rmtest_07.o librm.a $(CODEROOT)/rbf/librbf.a $(CODEROOT)/ix/libix.a
