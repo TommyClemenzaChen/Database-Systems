@@ -93,6 +93,8 @@ class RM_IndexScanIterator {
   // "key" follows the same format as in IndexManager::insertEntry()
   RC getNextEntry(RID &rid, void *key) {return RM_EOF;};  	// Get next matching entry
   RC close() {return -1;};             			// Terminate index scan
+
+  friend class RelationManager;
 };
 
 

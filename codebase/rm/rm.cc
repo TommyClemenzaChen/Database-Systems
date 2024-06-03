@@ -866,18 +866,20 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
         cout << "table doesn't exist!!!" << endl;
         return FAIL;
     }
+    cout << "tableName: " << tableName << endl;
     vector<Attribute> indexDescriptor;
     if (getAttributes(tableName, indexDescriptor) != SUCCESS) {
         cout << "can't get attributes" << endl;
         return FAIL;
     }
 
-    //check to see if attributeName is a valid attribute
+    /*check to see if attributeName is a valid attribute
     for (int i = 0; i < indexDescriptor.size(); i++) {
         cout << indexDescriptor[i].name << endl;
     }
     return SUCCESS;
-    
+    */
+   
     IndexManager *im = IndexManager::instance();
 
     string indexName = tableName + "." + attributeName;
