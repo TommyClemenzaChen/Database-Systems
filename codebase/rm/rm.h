@@ -90,10 +90,13 @@ class RM_IndexScanIterator {
   ~RM_IndexScanIterator() {}; 	// Destructor
 
   // "key" follows the same format as in IndexManager::insertEntry()
-  RC getNextEntry(RID &rid, void *key) {return RM_EOF;};  	// Get next matching entry
+  RC getNextEntry(RID &rid, void *key);  	// Get next matching entry
   RC close() {return -1;};             			// Terminate index scan
 
   friend class RelationManager;
+  private:
+    IX_ScanIterator ix_iter;
+    IXFileHandle ixFileHandle;
 };
 
 // Relation Manager
@@ -173,9 +176,9 @@ private:
   void prepareTablesRecordData(int32_t id, bool system, const string &tableName, void *data);
   void prepareColumnsRecordData(int32_t id, int32_t pos, Attribute attr, void *data);
 
-  RC prepareIndexesRecordData(int32_t id, const string &attributeName, const string &fileName, void *data);
+  RC prepareIndexesRecordData(int32_t id, Attribute attr, const string &fileName, void *data);
 
-  RC insertIndex(const string &tableName, const string &attributeName, const string &fileName);
+  RC insertIndex(int32_t id, Attribute attr, const string &fileName);
 
   // Given a table ID and recordDescriptor, creates entries in Column table
   RC insertColumns(int32_t id, const vector<Attribute> &recordDescriptor);

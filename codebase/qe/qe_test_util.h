@@ -402,6 +402,7 @@ int populateLeftTable() {
 	// GetAttributes
     vector<Attribute> attrs;
     rc = rm->getAttributes("left", attrs);
+
     assert(rc == success && "RelationManager::getAttributes() should not fail.");
 
     int nullAttributesIndicatorActualSize = getActualByteForNullsIndicator(attrs.size());

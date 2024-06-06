@@ -2,6 +2,8 @@
 #define _qe_h_
 
 #include <vector>
+#include <algorithm>
+#include <cstring>
 
 #include "../rbf/rbfm.h"
 #include "../rm/rm.h"
@@ -38,6 +40,7 @@ class Iterator {
         virtual RC getNextTuple(void *data) = 0;
         virtual void getAttributes(vector<Attribute> &attrs) const = 0;
         virtual ~Iterator() {};
+        
 };
 
 class TableScan : public Iterator
@@ -195,9 +198,12 @@ class Filter : public Iterator {
         );
         ~Filter(){};
 
-        RC getNextTuple(void *data) {return QE_EOF;};
+        RC getNextTuple(void *data);
         // For attribute in vector<Attribute>, name it as rel.attr
-        void getAttributes(vector<Attribute> &attrs) const{};
+        void getAttributes(vector<Attribute> &attrs) const;
+
+        
+    
 };
 
 
@@ -208,9 +214,14 @@ class Project : public Iterator {
               const vector<string> &attrNames){};   // vector containing attribute names
         ~Project(){};
 
-        RC getNextTuple(void *data) {return QE_EOF;};
+        RC getNextTuple(void *data);
         // For attribute in vector<Attribute>, name it as rel.attr
-        void getAttributes(vector<Attribute> &attrs) const{};
+        void getAttributes(vector<Attribute> &attrs) const;
+
+    private:
+        Iterator *_input;
+        vector<Attribute> _attrs;
+        vector<Attribute> _projectAttrs;
 };
 
 

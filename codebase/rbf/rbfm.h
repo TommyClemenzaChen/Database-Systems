@@ -216,6 +216,9 @@ IMPORTANT, PLEASE READ: All methods below this comment (other than the construct
 
 public:
   friend class RBFM_ScanIterator;
+  friend class Filter;
+  friend class Project;
+  friend class INLJoin;
 
 protected:
   RecordBasedFileManager();
