@@ -202,7 +202,7 @@ class Filter : public Iterator {
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const;
     private:
-        Iterator* input;
+        Iterator* _input;
         string  lhsAttr;   
         CompOp  op;        
         bool    bRhsIsAttr;

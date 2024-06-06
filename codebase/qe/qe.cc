@@ -1,15 +1,16 @@
-
+#include <cstring>
 #include "qe.h"
 
 Filter::Filter(Iterator* input, const Condition &condition) {
     // initialize private vars to what Condition is
     
-    input = input;
+    _input = input;
     lhsAttr = condition.lhsAttr;
     op = condition.op; // always EQ_OP but ok
     bRhsIsAttr = condition.bRhsIsAttr;
     rhsAttr = condition.rhsAttr;
     rhsValue = condition.rhsValue; // value has AttrType and data!!!!!
+    _input.getAttributes(this->attrs);
 
 }
 
@@ -45,26 +46,30 @@ bool compare(CompOp compOp, void lhsData, void* rhsValue.data, AttrType type) {
 // Writing out Utkarsh's pseudocode
 RC Filter::getNextTuple(void *data) {
     // input->getNextTuple() ??
-    if (input->getNextTuple(data) == EOF) return QE_EOF;
+    if (_input->getNextTuple(data) == EOF) return QE_EOF;
     do {
         // Fetch the attribute info (do this in Filter)
         // Check the conditions validity
         if (!bRhsIsAttr /* # fields in LHS != 0 || !(data type is the same on both sides) */)
             return BAD_COND;
+        // process record
         if (compare(op, lhsAttr.data /*find a way to get the actual value in here - through processRecord*/, rhsValue.data)) 
             return SUCCESS;
-    } while (input->getNextTuple(data));
+    } while (_input->getNextTuple(data));
+    
+    return -1; // if it doesn't get in it fails
 }
 
 // For attribute in vector<Attribute>, name it as rel.attr
 void Filter::getAttributes(vector<Attribute> &attrs) const {
-    attrs = this->attrs; // how do I get the attributes?
+    // attrs = this->attrs; // how do I get the attributes?
+    attrs = this->attrs;
 }
 
 // function to process the record data in *data
 void processRecord(void *data) 
 {
-    RecordBasedFileManager rbfm = RecordBasedFileManager::instance();
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
     // read through record where theres a match, then
         // get value of match and return it
     
