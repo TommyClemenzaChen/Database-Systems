@@ -46,14 +46,13 @@ using namespace std;
 #define INDEXES_TABLE_ID              3
 
 #define INDEXES_COL_TABLE_ID          "table-id"
-#define INDEXES_COL_TABLE_NAME        "table-name"
-#define INDEXES_COL_ATTR_NAME         "attr-name"
-#define INDEXES_COL_ATTR_TYPE         "attr-type"
-#define INDEXES_COL_ATTR_LENGTH       "attr-length"
-#define INDEXES_COL_RBF_FILE_NAME     "rbf-file-name"
-#define INDEXES_COL_TABLE_NAME_SIZE 50
+#define INDEXES_COL_ATTR_NAME         "attribute-name"
+#define INDEXES_COL_FILE_NAME         "file-name"
 #define INDEXES_COL_ATTR_NAME_SIZE 50
-#define INDEXES_COL_RBF_FILE_NAME_SIZE 50
+#define INDEXES_COL_FILE_NAME_SIZE 50
+
+// 1 null byte, 1 integer, 2 varchars
+#define INDEXES_RECORD_DATA_SIZE 1 + 3 * INT_SIZE + INDEXES_COL_ATTR_NAME_SIZE + INDEXES_COL_FILE_NAME_SIZE
 
 # define RM_EOF (-1)  // end of a scan operator
 
@@ -96,8 +95,6 @@ class RM_IndexScanIterator {
 
   friend class RelationManager;
 };
-
-
 
 // Relation Manager
 class RelationManager
@@ -150,6 +147,7 @@ public:
                   bool highKeyInclusive,
                   RM_IndexScanIterator &rm_IndexScanIterator);
 
+
 protected:
   RelationManager();
   ~RelationManager();
@@ -174,6 +172,10 @@ private:
   // Prepare an entry for the Table/Column table
   void prepareTablesRecordData(int32_t id, bool system, const string &tableName, void *data);
   void prepareColumnsRecordData(int32_t id, int32_t pos, Attribute attr, void *data);
+
+  RC prepareIndexesRecordData(int32_t id, const string &attributeName, const string &fileName, void *data);
+
+  RC insertIndex(const string &tableName, const string &attributeName, const string &fileName);
 
   // Given a table ID and recordDescriptor, creates entries in Column table
   RC insertColumns(int32_t id, const vector<Attribute> &recordDescriptor);

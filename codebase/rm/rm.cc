@@ -27,7 +27,7 @@ RelationManager::~RelationManager()
 RC RelationManager::createCatalog()
 {
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
-    // Create both tables and columns tables, return error if either fails
+    // Create tables, columns, and indexes tables, return error if either fails
     RC rc;
     rc = rbfm->createFile(getFileName(TABLES_TABLE_NAME));
     if (rc)
@@ -35,30 +35,29 @@ RC RelationManager::createCatalog()
     rc = rbfm->createFile(getFileName(COLUMNS_TABLE_NAME));
     if (rc)
         return rc;
+    rc = rbfm->createFile(getFileName(INDEXES_TABLE_NAME));
+    if (rc)
+        return rc;
 
-    // Add table entries for both Tables and Columns
+    // Add table entries for both Tables, Columns, Indexes
     rc = insertTable(TABLES_TABLE_ID, 1, TABLES_TABLE_NAME);
     if (rc)
         return rc;
     rc = insertTable(COLUMNS_TABLE_ID, 1, COLUMNS_TABLE_NAME);
     if (rc)
         return rc;
-    
-    //Add "indexes" table to tables 
-    rc = insertTable(TABLES_TABLE_ID, 1, INDEXES_TABLE_NAME);
+    rc = insertTable(INDEXES_TABLE_ID, 1, INDEXES_TABLE_NAME);
     if (rc)
         return rc;
 
 
-    // Add entries for tables and columns to Columns table
+    // Add entries for tables, columns, indexes to Columns table
     rc = insertColumns(TABLES_TABLE_ID, tableDescriptor);
     if (rc)
         return rc;
     rc = insertColumns(COLUMNS_TABLE_ID, columnDescriptor);
     if (rc)
         return rc;
-
-    //Add entries for "indexes" to Columns table
     rc = insertColumns(INDEXES_TABLE_ID, indexDescriptor);
     if (rc) 
         return rc;
@@ -515,29 +514,14 @@ vector<Attribute> RelationManager::createIndexDescriptor()
     attr.length = (AttrLength)INT_SIZE;
     indexDescriptor.push_back(attr);
 
-    attr.name = INDEXES_COL_TABLE_NAME;
-    attr.type = TypeVarChar;
-    attr.length = (AttrLength)INDEXES_COL_TABLE_NAME_SIZE;
-    indexDescriptor.push_back(attr);
-
     attr.name = INDEXES_COL_ATTR_NAME;
     attr.type = TypeVarChar;
     attr.length = (AttrLength)INDEXES_COL_ATTR_NAME_SIZE;
     indexDescriptor.push_back(attr);
 
-    attr.name = INDEXES_COL_ATTR_TYPE;
-    attr.type = TypeInt;
-    attr.length = 4;
-    indexDescriptor.push_back(attr);
-
-    attr.name = INDEXES_COL_ATTR_LENGTH;
-    attr.type = TypeInt;
-    attr.length = 4;
-    indexDescriptor.push_back(attr);
-
-    attr.name = INDEXES_COL_RBF_FILE_NAME;
+    attr.name = INDEXES_COL_FILE_NAME;
     attr.type = TypeVarChar;
-    attr.length = (AttrLength)INDEXES_COL_RBF_FILE_NAME_SIZE;
+    attr.length = (AttrLength)INDEXES_COL_FILE_NAME_SIZE;
     indexDescriptor.push_back(attr);
 
     return indexDescriptor;
@@ -609,6 +593,62 @@ void RelationManager::prepareColumnsRecordData(int32_t id, int32_t pos, Attribut
 
     memcpy((char*) data + offset, &pos, INT_SIZE);
     offset += INT_SIZE;
+}
+
+RC RelationManager::prepareIndexesRecordData(int32_t id, const string &attributeName, const string &fileName, void *data) {
+    
+    unsigned offset = 0;
+
+    //None will ever be null
+    char null = 0;
+
+    //null byte
+    memcpy((char*)data + offset, &null, 1);
+    offset += 1;
+
+    //table-id
+    memcpy((char*)data + offset, &id, INT_SIZE);
+    offset += INT_SIZE;
+
+    //attr-name
+    int32_t attrNameLen = attributeName.length();
+    memcpy((char*)data + offset, &attrNameLen, INT_SIZE);
+    offset += INT_SIZE;
+    memcpy((char*) data + offset, &attributeName, attrNameLen);
+    offset += attrNameLen;
+
+    //file-name
+    int32_t fileNameLen = fileName.length();
+    memcpy((char*)data + offset, &fileNameLen, INT_SIZE);
+    offset += INT_SIZE;
+    memcpy((char*) data + offset, &fileName, fileNameLen);
+    offset += fileNameLen;
+
+    return SUCCESS;
+}
+
+RC RelationManager::insertIndex(const string &tableName, const string &attributeName, const string &fileName)
+{
+    FileHandle fileHandle;
+    RID rid;
+    RC rc;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+
+    rc = rbfm->openFile(getFileName(TABLES_TABLE_NAME), fileHandle);
+    if (rc)
+        return rc;
+
+    int32_t tableID;
+    getTableID(tableName, tableID);
+    void *indexData = malloc(INDEXES_RECORD_DATA_SIZE);
+    prepareIndexesRecordData(tableID, attributeName, fileName, indexData);
+
+    rc = rbfm->insertRecord(fileHandle, tableDescriptor, indexData, rid);
+
+    rbfm->closeFile(fileHandle);
+    free (indexData);
+    return rc;
+
 }
 
 // Insert the given columns into the Columns table
@@ -866,30 +906,50 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
         cout << "table doesn't exist!!!" << endl;
         return FAIL;
     }
-    cout << "tableName: " << tableName << endl;
-    vector<Attribute> indexDescriptor;
-    if (getAttributes(tableName, indexDescriptor) != SUCCESS) {
-        cout << "can't get attributes" << endl;
-        return FAIL;
+    //get attribute of this attributeName
+    vector<Attribute> attrs;
+    getAttributes(tableName, attrs);
+    
+    auto it = find_if(attrs.begin(), attrs.end(), [&](const Attribute& attr) {
+        return attr.name == attributeName;
+    });
+    Attribute attr;
+    if (it != attrs.end()) {
+        attr = *it;
+    }
+    else {
+        cout << "damn couldn't find the attribute" << endl;
     }
 
-    /*check to see if attributeName is a valid attribute
-    for (int i = 0; i < indexDescriptor.size(); i++) {
-        cout << indexDescriptor[i].name << endl;
+    IndexManager *ix = IndexManager::instance();
+
+    string indexFileName = tableName + "." + attributeName;
+    ix->createFile(indexFileName);
+
+    //put stuff from rbfm file to index file
+    RM_ScanIterator rm_ScanIterator;
+    vector<string> attributeNames;
+    attributeNames.push_back(attributeName);
+    
+    scan(tableName, "", NO_OP, NULL, attributeNames, rm_ScanIterator);
+    
+    
+
+    IXFileHandle ixFileHandle;
+    //RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    
+    RID rid;
+    void *key = malloc(PAGE_SIZE);
+    while (rm_ScanIterator.getNextTuple(rid, key) != RM_EOF) {
+        
+        //TODO: actually store stuff to index file
+       
+        ix->insertEntry(ixFileHandle, attr, key, rid);
     }
-    return SUCCESS;
-    */
-   
-    IndexManager *im = IndexManager::instance();
+    rm_ScanIterator.close();
+    free(key);
 
-    string indexName = tableName + "." + attributeName;
-    im->createFile(indexName);
-
-    //add new index table entries to catalog
-    int32_t table_id;
-    getNextTableID(table_id);
-
-    insertTable(table_id, 0, indexName);
+    ix->closeFile(ixFileHandle);
 
     return SUCCESS;
     

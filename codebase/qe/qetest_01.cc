@@ -29,13 +29,14 @@ int testCase_1() {
 		cerr << "***** populateLeftTable() failed.  *****" << endl;
 		return rc;
 	}
-
+	
 	// Create an index after inserting tuples - should reflect the currently existing tuples.
 	rc = createIndexforLeftC();
 	if (rc != success) {
 		cerr << "***** createIndexforLeftC() failed.  *****" << endl;
 		return rc;
 	}
+	
 	return rc;
 }
 
