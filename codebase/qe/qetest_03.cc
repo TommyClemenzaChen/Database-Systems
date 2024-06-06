@@ -94,8 +94,9 @@ RC testCase_3() {
 
 		memset(data, 0, bufSize);
 		actualResultCnt++;
+        cout << "gets here? :P" << endl;
 	}
-
+    cout << expectedResultCnt << " vs " << actualResultCnt << endl;
 	if (expectedResultCnt != actualResultCnt) {
 		cerr << "***** The number of returned tuple is not correct. *****" << endl;
 		rc = fail;

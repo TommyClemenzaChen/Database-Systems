@@ -8,6 +8,7 @@
 #include "../ix/ix.h"
 
 #define QE_EOF (-1)  // end of the index scan
+#define BAD_COND 2
 
 using namespace std;
 
@@ -32,15 +33,14 @@ struct Condition {
     Value   rhsValue;       // right-hand side value if bRhsIsAttr = FALSE
 };
 
-
 class Iterator {
     // All the relational operators and access methods are iterators.
-    public:
+    public: 
+        friend class RecordBasedFileManager;
         virtual RC getNextTuple(void *data) = 0;
         virtual void getAttributes(vector<Attribute> &attrs) const = 0;
         virtual ~Iterator() {};
 };
-
 
 class TableScan : public Iterator
 {
@@ -132,7 +132,6 @@ class IndexScan : public Iterator
         	this->tableName = tableName;
         	this->attrName = attrName;
 
-
             // Get Attributes from RM
             rm.getAttributes(tableName, attrs);
 
@@ -198,9 +197,17 @@ class Filter : public Iterator {
         );
         ~Filter(){};
 
-        RC getNextTuple(void *data) {return QE_EOF;};
+        RC getNextTuple(void *data);
+
         // For attribute in vector<Attribute>, name it as rel.attr
-        void getAttributes(vector<Attribute> &attrs) const{};
+        void getAttributes(vector<Attribute> &attrs) const;
+    private:
+        Iterator* input;
+        string  lhsAttr;   
+        CompOp  op;        
+        bool    bRhsIsAttr;
+        string  rhsAttr;  
+        Value   rhsValue; 
 };
 
 
@@ -230,6 +237,5 @@ class INLJoin : public Iterator {
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const{};
 };
-
 
 #endif
