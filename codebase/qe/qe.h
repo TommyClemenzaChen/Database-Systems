@@ -208,6 +208,7 @@ class Filter : public Iterator {
         bool    bRhsIsAttr;
         string  rhsAttr;  
         Value   rhsValue; 
+        vector<Attribute> &attrs;
 };
 
 
