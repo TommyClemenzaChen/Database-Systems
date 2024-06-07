@@ -208,15 +208,15 @@ class Filter : public Iterator {
 
     private:
         Iterator* _input;
-        string  lhsAttr;   
-        CompOp  op;        
-        bool    bRhsIsAttr;
-        string  rhsAttr;  
-        Value   rhsValue; 
-        vector<Attribute> attrs;
+        string  _lhsAttr;   
+        CompOp  _op;        
+        bool    _bRhsIsAttr;
+        string  _rhsAttr;  
+        Value   _rhsValue; 
+        vector<Attribute> _attrs;
         RC processRecord(void *data, void* lhsData);
-        bool lhsFieldIsNull;
-        bool rhsAndLhsTypesMatch;
+        bool _lhsFieldIsNull;
+        bool _rhsAndLhsTypesMatch;
 };
 
 
@@ -245,7 +245,7 @@ class INLJoin : public Iterator {
         INLJoin(Iterator *leftIn,           // Iterator of input R
                IndexScan *rightIn,          // IndexScan Iterator of input S
                const Condition &condition   // Join condition
-        ){};
+        );
         ~INLJoin(){};
 
         RC getNextTuple(void *data);
