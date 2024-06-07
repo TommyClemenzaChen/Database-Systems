@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <climits>
+#include <algorithm>
 
 #include "../rbf/pfm.h"
 
@@ -114,6 +115,8 @@ public:
   RC getNextRecord(RID &rid, void *data);
   RC close();
 
+  friend class RecordBasedFileManager;
+  friend class Iterator;
  
 
 private:

@@ -1,3 +1,11 @@
 /rbf/*.o
 /ix/*.o
 /qe/*.o
+/rm/*/.o
+
+/rbf/*test
+/ix/*test
+/qe/*test
+/rm/*test
+
+

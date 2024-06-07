@@ -73,6 +73,7 @@ RC testCase_3() {
 		cerr << "  left.B " << valueB;
 		offset += sizeof(int);
 		if (valueB > compVal) {
+			cout << "valueB: " << valueB << "compval: " << compVal << endl;
 			cerr << endl << "***** A returned value is not correct. *****" << endl;
 			rc = fail;
 			goto clean_up;
@@ -95,8 +96,6 @@ RC testCase_3() {
 		memset(data, 0, bufSize);
 		actualResultCnt++;
 	}
-
-	cout << "Expected: " << expectedResultCnt << " vs " << "Actual: " << actualResultCnt << endl;
 
 	if (expectedResultCnt != actualResultCnt) {
 		cerr << "***** The number of returned tuple is not correct. *****" << endl;

@@ -2,14 +2,13 @@
 #define _qe_h_
 
 #include <vector>
-#include <algorithm>
-#include <cstring>
 
 #include "../rbf/rbfm.h"
 #include "../rm/rm.h"
 #include "../ix/ix.h"
 
 #define QE_EOF (-1)  // end of the index scan
+#define BAD_COND 2
 
 using namespace std;
 
@@ -36,11 +35,13 @@ struct Condition {
 
 class Iterator {
     // All the relational operators and access methods are iterators.
-    public:
+    public: 
+        friend class RecordBasedFileManager;
+        friend class RBFM_ScanIterator;
         virtual RC getNextTuple(void *data) = 0;
         virtual void getAttributes(vector<Attribute> &attrs) const = 0;
         virtual ~Iterator() {};
-        
+        bool compare(CompOp compOp, void* lhsData, void* data, AttrType type);
 };
 
 class TableScan : public Iterator
@@ -198,11 +199,23 @@ class Filter : public Iterator {
         );
         ~Filter(){};
 
-        RC getNextTuple(void *data) {return QE_EOF;};
-        // For attribute in vector<Attribute>, name it as rel.attr
-        void getAttributes(vector<Attribute> &attrs) const{};
-};
+        RC getNextTuple(void *data);
 
+        // For attribute in vector<Attribute>, name it as rel.attr
+        void getAttributes(vector<Attribute> &attrs) const;
+
+    private:
+        Iterator* _input;
+        string  _lhsAttr;   
+        CompOp  _op;        
+        bool    _bRhsIsAttr;
+        string  _rhsAttr;  
+        Value   _rhsValue; 
+        vector<Attribute> _attrs;
+        RC processRecord(void *data, void* lhsData);
+        bool _lhsFieldIsNull;
+        bool _rhsAndLhsTypesMatch;
+};
 
 
 class Project : public Iterator {

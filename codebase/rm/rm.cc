@@ -936,6 +936,8 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
         cout << "damn couldn't find the attribute" << endl;
     }
 
+  
+
     RM_ScanIterator rm_scanIterator;
     vector<string> attributeNames;
     attributeNames.push_back(attributeName);
@@ -955,17 +957,24 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
 
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
     FileHandle fileHandle;
-    rbfm->openFile("left", fileHandle);
+    rbfm->openFile(getFileName(tableName), fileHandle);
     while (rm_scanIterator.getNextTuple(rid, data) != RM_EOF) {
         if (*(char*)data) {
             cout << "passed" << endl;
             continue;
         }
         
+        //rbfm->readRecord(fileHandle, attrs, rid, data);
+        //rbfm->printRecord(attrs, data);
         //TODO: actually store stuff to index file
-        ix->insertEntry(ixFileHandle, attr, data, rid);
+        int temp;
+        memcpy(&temp, data+1, INT_SIZE);
+        //cout << temp << endl;
+        ix->insertEntry(ixFileHandle, attr, data+1, rid);
         
     }
+
+    ix->printBtree(ixFileHandle, attr);
     
     //add new index to index catalog
     rc = insertIndex(tableID, attr, indexFileName);
@@ -976,9 +985,6 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
     
     rm_scanIterator.close();
     free(data);
-
-    ix->printBtree(ixFileHandle, attr);
-    
 
     ix->closeFile(ixFileHandle);
 
