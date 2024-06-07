@@ -9,6 +9,7 @@
 
 
 RC testCase_3() {
+    cout << "get here\n";
 	// Mandatory for all
 	// Filter -- TableScan as input, on an Integer Attribute
 	// SELECT * FROM LEFT WHERE B <= 30
@@ -94,8 +95,8 @@ RC testCase_3() {
 
 		memset(data, 0, bufSize);
 		actualResultCnt++;
-        cout << "gets here? :P" << endl;
-	}
+        cout << "actual result count: " << actualResultCnt << endl;
+    }
     cout << expectedResultCnt << " vs " << actualResultCnt << endl;
 	if (expectedResultCnt != actualResultCnt) {
 		cerr << "***** The number of returned tuple is not correct. *****" << endl;

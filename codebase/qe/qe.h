@@ -37,9 +37,11 @@ class Iterator {
     // All the relational operators and access methods are iterators.
     public: 
         friend class RecordBasedFileManager;
+        friend class RBFM_ScanIterator;
         virtual RC getNextTuple(void *data) = 0;
         virtual void getAttributes(vector<Attribute> &attrs) const = 0;
         virtual ~Iterator() {};
+        bool compare(CompOp compOp, void* lhsData, void* data, AttrType type);
 };
 
 class TableScan : public Iterator
@@ -201,6 +203,7 @@ class Filter : public Iterator {
 
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const;
+
     private:
         Iterator* _input;
         string  lhsAttr;   
@@ -208,7 +211,10 @@ class Filter : public Iterator {
         bool    bRhsIsAttr;
         string  rhsAttr;  
         Value   rhsValue; 
-        vector<Attribute> &attrs;
+        vector<Attribute> attrs;
+        RC processRecord(void *data, void* lhsData);
+        bool lhsFieldIsNull;
+        bool rhsAndLhsTypesMatch;
 };
 
 
