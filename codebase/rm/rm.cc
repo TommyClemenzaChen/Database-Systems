@@ -941,7 +941,7 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
     RM_ScanIterator rm_scanIterator;
     vector<string> attributeNames;
     attributeNames.push_back(attributeName);
-    if(scan(tableName, "", NO_OP, nullptr, attributeNames, rm_scanIterator) != SUCCESS){
+    if(scan(tableName, "", NO_OP, NULL, attributeNames, rm_scanIterator) != SUCCESS){
         cout << "rm scan did not work" << endl;
     }
     

@@ -12,13 +12,13 @@ bool Iterator::compare(CompOp compOp, void* lhsData, void* data, AttrType type) 
         case TypeInt:
             int32_t recordInt;
             memcpy(&recordInt, (char*)lhsData + 1, sizeof(int));
-            cout << recordInt << endl;
+            //cout << recordInt << endl;
             return rbfm_si->checkScanCondition(recordInt, compOp, data);
             break;
         case TypeReal:
             float recordReal;
             memcpy(&recordReal, (char*)lhsData + 1, sizeof(float));
-            cout << recordReal << endl;
+            //cout << recordReal << endl;
             return rbfm_si->checkScanCondition(recordReal, compOp, data);
             break;
         case TypeVarChar:
@@ -50,10 +50,9 @@ Filter::Filter(Iterator* input, const Condition &condition) {
 
 // Writing out Utkarsh's pseudocode
 RC Filter::getNextTuple(void *data) {
-    // input->getNextTuple() ??
     if (_input->getNextTuple(data) == EOF)
         return QE_EOF;
-    
+
     do {
         // Fetch the attribute info (do this in Filter)
         void* lhsData;
@@ -89,6 +88,9 @@ void Filter::getAttributes(vector<Attribute> &attrs) const {
 
 // function to process the record data in *data
 RC Filter::processRecord(void *data, void* lhsData) {
+    RelationManager *rm = RelationManager::instance();
+    
+    
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
 
     // Prepare null indicator
@@ -104,6 +106,9 @@ RC Filter::processRecord(void *data, void* lhsData) {
 
     // Keep track of offset into data
     unsigned offset = nullIndicatorSize;
+
+    //store nullIndicator in lhsData
+    memcpy(nullIndicator, (char*)data, nullIndicatorSize);
 
     for (unsigned i = 0; i < (unsigned)_attrs.size(); i++) {
         _lhsFieldIsNull = rbfm->fieldIsNull(nullIndicator, i);
@@ -123,23 +128,28 @@ RC Filter::processRecord(void *data, void* lhsData) {
             case TypeInt:
                 uint32_t data_integer;
                 memcpy(&data_integer, ((char*) data + offset), INT_SIZE);
+                memcpy((char*)lhsData + offset, &data_integer, INT_SIZE);
+                cout << *(int*)lhsData << endl;
                 offset += INT_SIZE;
-                memcpy(lhsData, &data_integer, INT_SIZE);
                 
-            break;
+                
+                break;
             case TypeReal:
                 float data_real;
                 memcpy(&data_real, ((char*) data + offset), REAL_SIZE);
+                memcpy((char*)lhsData + offset, &data_real, REAL_SIZE);
+                cout << *(float*)lhsData << endl;
                 offset += REAL_SIZE;
-
-                memcpy(lhsData, &data_real, REAL_SIZE);
                 
-            break;
+                
+                break;
             case TypeVarChar:
                 // First VARCHAR_LENGTH_SIZE bytes describe the varchar length
                 uint32_t varcharSize;
                 memcpy(&varcharSize, ((char*) data + offset), VARCHAR_LENGTH_SIZE);
+                memcpy((char*)lhsData + offset, &varcharSize, VARCHAR_LENGTH_SIZE);
                 offset += VARCHAR_LENGTH_SIZE;
+                
 
                 // Gets the actual string.
                 char *data_string = (char*) malloc(varcharSize + 1);
@@ -147,18 +157,17 @@ RC Filter::processRecord(void *data, void* lhsData) {
                     return RBFM_MALLOC_FAILED;
 
                 memcpy(data_string, ((char*) data + offset), varcharSize);
-                offset += varcharSize;
-
                 // Adds the string terminator.
                 data_string[varcharSize] = '\0';
-                            
-                memcpy(lhsData, &data_string, varcharSize);
+                memcpy((char*)lhsData+offset, data_string, varcharSize);
+                offset += varcharSize;
 
                 free(data_string);
-            break;
+                break;
         }
 
         if (_attrs[i].name == _lhsAttr) {
+            
             break;
         }  
     }
