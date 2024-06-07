@@ -51,3 +51,12 @@ for (unsigned i = 0; i < (unsigned)attrs.size(); i++) {
         }
     }
 }
+
+
+
+i just kinda wrote it but the idea is:
+
+for each Attribute in attrs:
+    // read in each entry in *data until you find the record that matches
+
+

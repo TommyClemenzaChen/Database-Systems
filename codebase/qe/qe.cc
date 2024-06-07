@@ -1,4 +1,7 @@
 #include <cstring>
+#include <iostream>     // std::cout
+#include <algorithm>    // std::find_if
+#include <vector>  
 #include "qe.h"
 
 Filter::Filter(Iterator* input, const Condition &condition) {  
@@ -49,9 +52,7 @@ RC Filter::getNextTuple(void *data) {
     // input->getNextTuple() ??
     if (_input->getNextTuple(data) == EOF) return QE_EOF;
     do {
-        // Fetch the attribute info (do this in Filter)
-        
-        // process record
+        // Process record
         void* lhsData;
         processRecord(data, lhsData);
 
@@ -85,9 +86,6 @@ RC Filter::processRecord(void *data, void* lhsData) {
     lhsData = malloc(PAGE_SIZE);
     if (lhsData == NULL) return RBFM_MALLOC_FAILED;
     
-    void* buffer = malloc(PAGE_SIZE);
-    if (buffer == NULL) return RBFM_MALLOC_FAILED;
-
     // Keep track of offset into data
     unsigned offset = nullIndicatorSize;
 
@@ -137,7 +135,7 @@ RC Filter::processRecord(void *data, void* lhsData) {
                 free(data_string);
             break;
         }
-        if (attrs[i].name == rhsAttr) {
+        if (attrs[i].name == lhsAttr) {
             if ((lhsFieldIsNull = rbfm->fieldIsNull(nullIndicator, i))) {
                 return -2; // fix
             }
@@ -147,6 +145,7 @@ RC Filter::processRecord(void *data, void* lhsData) {
             break;
         }
     }
+    return SUCCESS;
 }
 
 Project::Project(Iterator *input, const vector<string> &attrNames) {
@@ -167,60 +166,119 @@ Project::Project(Iterator *input, const vector<string> &attrNames) {
     }
 }
 
-RC Project::getNextTuple(void *data) {
-    // Unsure how large each attribute will be, set to size of page to be safe
-    void *buffer = malloc(PAGE_SIZE);
-    if (buffer == NULL)
-        return RBFM_MALLOC_FAILED;
+RC Project::getNextTuple(void *data) { }
+//     // Unsure how large each attribute will be, set to size of page to be safe
+//     void *buffer = malloc(PAGE_SIZE);
+//     if (buffer == NULL)
+//         return RBFM_MALLOC_FAILED;
     
-    if (_input->getNextTuple(buffer) == QE_EOF)
-        return QE_EOF;
+//     if (_input->getNextTuple(buffer) == QE_EOF)
+//         return QE_EOF;
     
-    unsigned bufOffset;
-    unsigned dataOffset;
+//     unsigned bufOffset;
+//     unsigned dataOffset;
 
-    // Parse the null indicator into an array
-    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
-    int nullIndicatorSize = rbfm->getNullIndicatorSize(_attrs.size());
-    char nullIndicator[nullIndicatorSize];
-    memset(nullIndicator, 0, nullIndicatorSize);
-    memcpy(nullIndicator, data, nullIndicatorSize);
+//     // Parse the null indicator into an array
+//     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+//     int nullIndicatorSize = rbfm->getNullIndicatorSize(_attrs.size());
+//     char nullIndicator[nullIndicatorSize];
+//     memset(nullIndicator, 0, nullIndicatorSize);
+//     memcpy(nullIndicator, data, nullIndicatorSize);
 
-    bufOffset += nullIndicatorSize;
-    dataOffset += nullIndicatorSize;
+//     bufOffset += nullIndicatorSize;
+//     dataOffset += nullIndicatorSize;
 
-    unsigned attrSize;
+//     unsigned attrSize;
 
-    for (int i = 0; i < _projectAttrs.size(); i++) {
-        for (int j = 0; j < _attrs.size(); i++) {
-            switch (_attrs[j].type) {
-                case TypeInt:
-                    attrSize = INT_SIZE;
-                    break;
-                case TypeReal:
-                    attrSize = REAL_SIZE;
-                    break;
-                case TypeVarChar:
-                    memcpy(&attrSize, (char*)buffer + bufOffset, VARCHAR_LENGTH_SIZE);
-                    attrSize += VARCHAR_LENGTH_SIZE;
-            }   
+//     for (int i = 0; i < _projectAttrs.size(); i++) {
+//         for (int j = 0; j < _attrs.size(); i++) {
+//             switch (_attrs[j].type) {
+//                 case TypeInt:
+//                     attrSize = INT_SIZE;
+//                     break;
+//                 case TypeReal:
+//                     attrSize = REAL_SIZE;
+//                     break;
+//                 case TypeVarChar:
+//                     memcpy(&attrSize, (char*)buffer + bufOffset, VARCHAR_LENGTH_SIZE);
+//                     attrSize += VARCHAR_LENGTH_SIZE;
+//             }   
 
-            if (_projectAttrs[i].name == _attrs[j].name) {
-                break;
-            }
-            bufOffset += attrSize;
-        }
+//             if (_projectAttrs[i].name == _attrs[j].name) {
+//                 break;
+//             }
+//             bufOffset += attrSize;
+//         }
         
-        //we found project attribute
-        memcpy((char*)data + dataOffset, (char*)buffer + bufOffset, attrSize);
-        bufOffset += attrSize;
-        dataOffset += attrSize;
-    }
-    free(buffer);
+//         //we found project attribute
+//         memcpy((char*)data + dataOffset, (char*)buffer + bufOffset, attrSize);
+//         bufOffset += attrSize;
+//         dataOffset += attrSize;
+//     }
+//     free(buffer);
 
-    return SUCCESS;
+//     return SUCCESS;
+// }
+
+void Project::getAttributes(vector<Attribute> &attrs) const {}
+//     attrs = _projectAttrs;
+// }
+
+
+INLJoin::INLJoin(Iterator *leftIn, IndexScan *rightIn, const Condition &condition) {
+    _leftIn = leftIn;
+    _rightIn = rightIn;
+    _cond = condition;
+    _leftIn->getAttributes(_leftAttr);
+    _rightIn->getAttributes(_rightAttr);
+    _leftData = malloc(PAGE_SIZE);
+    _rightData = malloc(PAGE_SIZE);
+    _resultData = malloc(PAGE_SIZE);
+    initializeOutputAttr(_leftAttr, _rightAttr, _outputAttr);
+    _readLeft = true;
 }
 
-void Project::getAttributes(vector<Attribute> &attrs) const {
-    attrs = _projectAttrs;
+// loop to initialize outputAttributes
+void INLJoin::initializeOutputAttr(const vector<Attribute> lhsAttr, const vector<Attribute> rhsAttr, vector<Attribute> &outputAttr) {
+    // add lhsAttr + rhsAttr 
+    for (size_t i = 0; i < lhsAttr.size(); i++) {
+        outputAttr.push_back(lhsAttr[i]);        
+    }
+
+    for (size_t i = 0; i < rhsAttr.size(); i++) {
+        outputAttr.push_back(rhsAttr[i]);        
+    }
+}
+
+RC INLJoin::getNextTuple(void *data) {
+    if (_readLeft) {
+        RC rc = _leftIn->getNextTuple(_leftData);
+        if (rc) return GET_NEXT_TUPLE_ERROR;
+        _readLeft = false;
+        buildLeft(_resultData, _leftData); // I don't think this should be resData but TBD
+    } 
+    RC rc = _rightIn->getNextTuple(_rightData);
+    if (rc == QE_EOF) {
+        _readLeft = true;
+        _rightIn->setIterator(NULL, NULL, true, true); // rightReset
+        return getNextTuple(data); 
+    }
+    
+    // Utkarsh said this but idk how to implement, i imagine something like calling prepareRecord?
+        // build or fetch the condition attribute from rightData
+        // fetch the "name" from the big record (_resultData i think) and left
+    if (!compare(EQ_OP, _leftData, _rightData, _cond.rhsValue.type)) {
+        return getNextTuple(data);
+    }
+    // write the attributes in right data to the built data
+    buildLeft(_resultData, _rightData);
+}
+
+void INLJoin::buildLeft(void *resultData, void *data) {
+    // sigh
+    
+}
+        
+void INLJoin::getAttributes(vector<Attribute> &attrs) {
+    attrs = _outputAttr;
 }
