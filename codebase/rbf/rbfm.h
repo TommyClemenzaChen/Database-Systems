@@ -114,7 +114,7 @@ public:
   RC getNextRecord(RID &rid, void *data);
   RC close();
 
-  friend class RecordBasedFileManager;
+ 
 
 private:
   RecordBasedFileManager *rbfm;

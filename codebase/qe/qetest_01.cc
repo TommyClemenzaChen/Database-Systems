@@ -29,14 +29,13 @@ int testCase_1() {
 		cerr << "***** populateLeftTable() failed.  *****" << endl;
 		return rc;
 	}
-	
+
 	// Create an index after inserting tuples - should reflect the currently existing tuples.
 	rc = createIndexforLeftC();
 	if (rc != success) {
 		cerr << "***** createIndexforLeftC() failed.  *****" << endl;
 		return rc;
 	}
-	
 	return rc;
 }
 
@@ -66,5 +65,4 @@ int main() {
 		cerr << "***** QE Test Case 1 finished. The result will be examined. *****" << endl;
 		return success;
 	}
-
 }

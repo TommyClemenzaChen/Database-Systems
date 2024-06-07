@@ -2,7 +2,6 @@
 #include "qe.h"
 
 Filter::Filter(Iterator* input, const Condition &condition) {
-
 }
 
 

@@ -607,6 +607,7 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
     free (buffer);
     rid.pageNum = currPage;
     rid.slotNum = currSlot++;
+
     return SUCCESS;
 }
 
