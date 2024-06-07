@@ -1,62 +1,57 @@
-for (unsigned i = 0; i < (unsigned)attrs.size(); i++) {
-    if (attrs[i].name == lhsAttr) {
-        if ((lhsFieldIsNull = rbfm->fieldIsNull(nullIndicator, i))) {
-            return -2; // fix
-        }
-        if (!(rhsAndLhsTypesMatch = (attrs[i].type == rhsValue.type))) {
-            return -3; // fix so there's no magic numbers
-        }
+    // Parse the null indicator into an array
+    int nullIndicatorSize = getNullIndicatorSize(recordDescriptor.size());
+    char nullIndicator[nullIndicatorSize];
+    memset(nullIndicator, 0, nullIndicatorSize);
+    memcpy(nullIndicator, data, nullIndicatorSize);
+    
+    // We've read in the null indicator, so we can skip past it now
+    unsigned offset = nullIndicatorSize;
+
+    cout << "----" << endl;
+    for (unsigned i = 0; i < (unsigned) recordDescriptor.size(); i++)
+    {
+        cout << setw(10) << left << recordDescriptor[i].name << ": ";
         // If the field is null, don't print it
         bool isNull = fieldIsNull(nullIndicator, i);
-        if (attrs[i].name == lhsAttr)
-
-        lhsFieldIsNull = rbfm->fieldIsNull(nullIndicator, i);
-        rhsAndLhsTypesMatch = (attrs[i].type == rhsValue.type);
-
-        switch (attrs[i].type)
+        if (isNull)
+        {
+            cout << "NULL" << endl;
+            continue;
+        }
+        switch (recordDescriptor[i].type)
         {
             case TypeInt:
                 uint32_t data_integer;
                 memcpy(&data_integer, ((char*) data + offset), INT_SIZE);
                 offset += INT_SIZE;
 
-                
+                cout << "" << data_integer << endl;
             break;
             case TypeReal:
                 float data_real;
                 memcpy(&data_real, ((char*) data + offset), REAL_SIZE);
                 offset += REAL_SIZE;
 
-                
+                cout << "" << data_real << endl;
             break;
             case TypeVarChar:
                 // First VARCHAR_LENGTH_SIZE bytes describe the varchar length
                 uint32_t varcharSize;
                 memcpy(&varcharSize, ((char*) data + offset), VARCHAR_LENGTH_SIZE);
-                // offset += VARCHAR_LENGTH_SIZE;
+                offset += VARCHAR_LENGTH_SIZE;
 
                 // Gets the actual string.
                 char *data_string = (char*) malloc(varcharSize + 1);
                 if (data_string == NULL)
                     return RBFM_MALLOC_FAILED;
-
                 memcpy(data_string, ((char*) data + offset), varcharSize);
 
                 // Adds the string terminator.
                 data_string[varcharSize] = '\0';
-                offset += varcharSize;              
-                
+                offset += varcharSize;
+
+                cout << data_string << endl;
                 free(data_string);
             break;
         }
     }
-}
-
-
-
-i just kinda wrote it but the idea is:
-
-for each Attribute in attrs:
-    // read in each entry in *data until you find the record that matches
-
-
