@@ -221,6 +221,7 @@ class Filter : public Iterator {
 
 
 class Project : public Iterator {
+    
     // Projection operator
     public:
         Project(Iterator *input,                    // Iterator of input R
@@ -230,6 +231,7 @@ class Project : public Iterator {
         RC getNextTuple(void *data);
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const;
+
 
     private:
         Iterator *_input;
@@ -246,9 +248,11 @@ class INLJoin : public Iterator {
                IndexScan *rightIn,          // IndexScan Iterator of input S
                const Condition &condition   // Join condition
         );
+        RC compareValuesOnAttr();
         ~INLJoin(){};
 
         RC getNextTuple(void *data);
+        RC buildRight();
         // For attribute in vector<Attribute>, name it as rel.attr
         void getAttributes(vector<Attribute> &attrs) const;
     private:
@@ -256,16 +260,17 @@ class INLJoin : public Iterator {
         Iterator* _leftIn;
         IndexScan* _rightIn;
         Condition _cond;
-        vector<Attribute> _leftAttr;
-        vector<Attribute> _rightAttr;
-        vector<Attribute> _outputAttr;
+        vector<Attribute> _lhsAttrs;
+        vector<Attribute> _rhsAttrs;
+        vector<Attribute> _outputAttrs;
         void*_leftData;
         void*_rightData;
         void*_resultData;
         bool _readLeft;
+        unsigned _finalDataSize;
+        unsigned _rightStartOffset;
 
-        void initializeOutputAttr(const vector<Attribute> lhsAttr, const vector<Attribute> rhsAttr, vector<Attribute> &outputAttr);
-        void buildLeft(void *resultData, void* data);
+        RC buildLeft();
 };
 
 #endif
