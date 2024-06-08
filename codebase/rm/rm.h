@@ -95,8 +95,8 @@ class RM_IndexScanIterator {
 
   friend class RelationManager;
   private:
-    IX_ScanIterator ix_iter;
-    IXFileHandle ixFileHandle;
+    IX_ScanIterator _ix_iter;
+    IXFileHandle _ixFileHandle;
 };
 
 // Relation Manager

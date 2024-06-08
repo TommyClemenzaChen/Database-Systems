@@ -941,7 +941,7 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
     RM_ScanIterator rm_scanIterator;
     vector<string> attributeNames;
     attributeNames.push_back(attributeName);
-    if(scan(tableName, "", NO_OP, nullptr, attributeNames, rm_scanIterator) != SUCCESS){
+    if(scan(tableName, "", NO_OP, NULL, attributeNames, rm_scanIterator) != SUCCESS){
         cout << "rm scan did not work" << endl;
     }
     
@@ -968,13 +968,10 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
         //rbfm->printRecord(attrs, data);
         //TODO: actually store stuff to index file
         int temp;
-        memcpy(&temp, data+1, INT_SIZE);
+        memcpy(&temp, (char*)data+1, INT_SIZE);
         //cout << temp << endl;
-        ix->insertEntry(ixFileHandle, attr, data+1, rid);
-        
+        ix->insertEntry(ixFileHandle, attr, (char*)data+1, rid);   
     }
-
-    ix->printBtree(ixFileHandle, attr);
     
     //add new index to index catalog
     rc = insertIndex(tableID, attr, indexFileName);
@@ -1007,7 +1004,8 @@ RC RelationManager::indexScan(const string &tableName,
     RM_IndexScanIterator &rm_IndexScanIterator) 
 {
     IndexManager *ix = IndexManager::instance();
-    RC rc = ix->openFile(getFileName(tableName), rm_IndexScanIterator.ixFileHandle);
+    const string indexFileName = tableName + "_" + attributeName + ".i";
+    RC rc = ix->openFile(indexFileName, rm_IndexScanIterator._ixFileHandle);
     if (rc)
         return rc;
 
@@ -1024,20 +1022,20 @@ RC RelationManager::indexScan(const string &tableName,
         cout << "damn couldn't find the attribute" << endl;
     }
 
-    rc = ix->scan(rm_IndexScanIterator.ixFileHandle, attr, lowKey, highKey, 
-                    lowKeyInclusive, highKeyInclusive, rm_IndexScanIterator.ix_iter);
+    rc = ix->scan(rm_IndexScanIterator._ixFileHandle, attr, lowKey, highKey, 
+                    lowKeyInclusive, highKeyInclusive, rm_IndexScanIterator._ix_iter);
 
     return SUCCESS;
 }
 
 RC RM_IndexScanIterator::getNextEntry(RID &rid, void *key) {
-    return ix_iter.getNextEntry(rid, key);
+    return _ix_iter.getNextEntry(rid, key);
 }
 
 RC RM_IndexScanIterator::close() {
     IndexManager *ix = IndexManager::instance();
-    ix_iter.close();
-    ix->closeFile(ixFileHandle);
+    _ix_iter.close();
+    ix->closeFile(_ixFileHandle);
     return SUCCESS;
 }
 
@@ -1068,7 +1066,7 @@ RC RelationManager::scan(const string &tableName,
                      compOp, value, attributeNames, rm_ScanIterator.rbfm_iter);
     if (rc)
         return rc;
-
+        
     return SUCCESS;
 }
 

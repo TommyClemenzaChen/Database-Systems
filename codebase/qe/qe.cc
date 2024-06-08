@@ -10,22 +10,23 @@ bool Iterator::compare(CompOp compOp, void* lhsData, void* data, AttrType type) 
     RBFM_ScanIterator *rbfm_si;
     //NOTE: we do +1 because we want to read pass 1 byte for null indicator
     switch (type) {
+        cout << "got here" << endl;
         case TypeInt:
             int32_t recordInt;
             memcpy(&recordInt, (char*)lhsData, INT_SIZE);
-            cout << recordInt << endl;
+            //cout << recordInt << endl;
             return rbfm_si->checkScanCondition(recordInt, compOp, data);
             break;
         case TypeReal:
             float recordReal;
             memcpy(&recordReal, (char*)lhsData, sizeof(float));
-            cout << recordReal << endl;
+            //cout << recordReal << endl;
             return rbfm_si->checkScanCondition(recordReal, compOp, data);
             break;
         case TypeVarChar:
             uint32_t varcharSize;
             memcpy(&varcharSize, (char*)lhsData, VARCHAR_LENGTH_SIZE);
-            char *recordString = (char*)malloc(varcharSize);
+            char *recordString = (char*)malloc(varcharSize+1); // if u get malloc error make sure every varchar malloc is +1
             memcpy(recordString, (char*)lhsData + VARCHAR_LENGTH_SIZE, varcharSize);
             recordString[varcharSize] = '\0';
             //cout << recordString << endl;
@@ -54,8 +55,9 @@ RC Filter::getNextTuple(void *data) {
     // input->getNextTuple() ??
     if (_input->getNextTuple(data) == EOF)
         return QE_EOF;
-    
+    //RelationManager *rm = RelationManager::instance();
     do {
+        //rm->printTuple(_attrs, data);
         // Fetch the attribute info (do this in Filter)
         void* lhsData = malloc(PAGE_SIZE);
         processRecord(data, lhsData);
@@ -75,11 +77,11 @@ RC Filter::getNextTuple(void *data) {
         }
 
         //now we have left hand side data, but we need to check if it's what we want
-        if (_input->compare(_op, lhsData, _rhsValue.data, _rhsValue.type) != SUCCESS)
+        if (_input->compare(_op, lhsData, _rhsValue.data, _rhsValue.type))
             return SUCCESS;
         free(lhsData);
 
-    } while (_input->getNextTuple(data));
+    } while (_input->getNextTuple(data) != QE_EOF);
     
     return -1; // if it doesn't get in it fails
 }
@@ -94,16 +96,12 @@ void Filter::getAttributes(vector<Attribute> &attrs) const {
 RC Filter::processRecord(void *data, void* lhsData) {
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
 
-    rbfm->printRecord(_attrs, data);
+    //rbfm->printRecord(_attrs, data);
     // Prepare null indicator
     unsigned nullIndicatorSize = rbfm->getNullIndicatorSize(_attrs.size());
     char nullIndicator[nullIndicatorSize];
     memset(nullIndicator, 0, nullIndicatorSize);
     memcpy(nullIndicator, data, nullIndicatorSize);
-
-    // Unsure how large each attribute will be, set to size of page to be safe
-    // lhsData = malloc(PAGE_SIZE);
-    // if (lhsData == NULL) return RBFM_MALLOC_FAILED;
     
     // Keep track of offset into data
     unsigned offset = nullIndicatorSize;
@@ -138,6 +136,7 @@ RC Filter::processRecord(void *data, void* lhsData) {
                 memcpy(&varcharSize, ((char*) data + offset), VARCHAR_LENGTH_SIZE);
                 offset += VARCHAR_LENGTH_SIZE;
 
+                memcpy(lhsData, &varcharSize, VARCHAR_LENGTH_SIZE);
                 // Gets the actual string.
                 char *data_string = (char*) malloc(varcharSize + 1);
                 if (data_string == NULL)
@@ -149,8 +148,8 @@ RC Filter::processRecord(void *data, void* lhsData) {
                 // Adds the string terminator.
                 data_string[varcharSize] = '\0';
                             
-                memcpy(lhsData, &data_string, varcharSize);
-
+                memcpy((char*)lhsData + VARCHAR_LENGTH_SIZE, data_string, varcharSize);
+            
                 free(data_string);
             break;
         }
@@ -299,6 +298,6 @@ void INLJoin::buildLeft(void *resultData, void *data) {
 
 }
         
-void INLJoin::getAttributes(vector<Attribute> &attrs) {
+void INLJoin::getAttributes(vector<Attribute> &attrs) const {
     attrs = _outputAttr;
 }
