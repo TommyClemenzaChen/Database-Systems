@@ -968,13 +968,10 @@ RC RelationManager::createIndex(const string &tableName, const string &attribute
         //rbfm->printRecord(attrs, data);
         //TODO: actually store stuff to index file
         int temp;
-        memcpy(&temp, data+1, INT_SIZE);
+        memcpy(&temp, (char*)data+1, INT_SIZE);
         //cout << temp << endl;
-        ix->insertEntry(ixFileHandle, attr, data+1, rid);
-        
+        ix->insertEntry(ixFileHandle, attr, (char*)data+1, rid);   
     }
-
-    ix->printBtree(ixFileHandle, attr);
     
     //add new index to index catalog
     rc = insertIndex(tableID, attr, indexFileName);
@@ -1068,7 +1065,7 @@ RC RelationManager::scan(const string &tableName,
                      compOp, value, attributeNames, rm_ScanIterator.rbfm_iter);
     if (rc)
         return rc;
-
+        
     return SUCCESS;
 }
 

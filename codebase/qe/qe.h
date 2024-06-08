@@ -8,7 +8,8 @@
 #include "../ix/ix.h"
 
 #define QE_EOF (-1)  // end of the index scan
-#define BAD_COND 2
+#define BAD_COND 1
+#define GET_NEXT_TUPLE_ERROR 2
 
 using namespace std;
 
@@ -38,6 +39,7 @@ class Iterator {
     public: 
         friend class RecordBasedFileManager;
         friend class RBFM_ScanIterator;
+
         virtual RC getNextTuple(void *data) = 0;
         virtual void getAttributes(vector<Attribute> &attrs) const = 0;
         virtual ~Iterator() {};
@@ -233,6 +235,7 @@ class Project : public Iterator {
         Iterator *_input;
         vector<Attribute> _attrs;
         vector<Attribute> _projectAttrs;
+        
 };
 
 
@@ -242,12 +245,27 @@ class INLJoin : public Iterator {
         INLJoin(Iterator *leftIn,           // Iterator of input R
                IndexScan *rightIn,          // IndexScan Iterator of input S
                const Condition &condition   // Join condition
-        ){};
+        );
         ~INLJoin(){};
 
-        RC getNextTuple(void *data){return QE_EOF;};
+        RC getNextTuple(void *data);
         // For attribute in vector<Attribute>, name it as rel.attr
-        void getAttributes(vector<Attribute> &attrs) const{};
+        void getAttributes(vector<Attribute> &attrs) const;
+    private:
+
+        Iterator* _leftIn;
+        IndexScan* _rightIn;
+        Condition _cond;
+        vector<Attribute> _leftAttr;
+        vector<Attribute> _rightAttr;
+        vector<Attribute> _outputAttr;
+        void*_leftData;
+        void*_rightData;
+        void*_resultData;
+        bool _readLeft;
+
+        void initializeOutputAttr(const vector<Attribute> lhsAttr, const vector<Attribute> rhsAttr, vector<Attribute> &outputAttr);
+        void buildLeft(void *resultData, void* data);
 };
 
 #endif
