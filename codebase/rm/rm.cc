@@ -1004,7 +1004,8 @@ RC RelationManager::indexScan(const string &tableName,
     RM_IndexScanIterator &rm_IndexScanIterator) 
 {
     IndexManager *ix = IndexManager::instance();
-    RC rc = ix->openFile(getFileName(tableName), rm_IndexScanIterator.ixFileHandle);
+    const string indexFileName = tableName + "_" + attributeName + ".i";
+    RC rc = ix->openFile(indexFileName, rm_IndexScanIterator._ixFileHandle);
     if (rc)
         return rc;
 
@@ -1021,20 +1022,20 @@ RC RelationManager::indexScan(const string &tableName,
         cout << "damn couldn't find the attribute" << endl;
     }
 
-    rc = ix->scan(rm_IndexScanIterator.ixFileHandle, attr, lowKey, highKey, 
-                    lowKeyInclusive, highKeyInclusive, rm_IndexScanIterator.ix_iter);
+    rc = ix->scan(rm_IndexScanIterator._ixFileHandle, attr, lowKey, highKey, 
+                    lowKeyInclusive, highKeyInclusive, rm_IndexScanIterator._ix_iter);
 
     return SUCCESS;
 }
 
 RC RM_IndexScanIterator::getNextEntry(RID &rid, void *key) {
-    return ix_iter.getNextEntry(rid, key);
+    return _ix_iter.getNextEntry(rid, key);
 }
 
 RC RM_IndexScanIterator::close() {
     IndexManager *ix = IndexManager::instance();
-    ix_iter.close();
-    ix->closeFile(ixFileHandle);
+    _ix_iter.close();
+    ix->closeFile(_ixFileHandle);
     return SUCCESS;
 }
 

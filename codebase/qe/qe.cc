@@ -26,7 +26,7 @@ bool Iterator::compare(CompOp compOp, void* lhsData, void* data, AttrType type) 
         case TypeVarChar:
             uint32_t varcharSize;
             memcpy(&varcharSize, (char*)lhsData, VARCHAR_LENGTH_SIZE);
-            char *recordString = (char*)malloc(varcharSize);
+            char *recordString = (char*)malloc(varcharSize+1);
             memcpy(recordString, (char*)lhsData + VARCHAR_LENGTH_SIZE, varcharSize);
             recordString[varcharSize] = '\0';
             //cout << recordString << endl;

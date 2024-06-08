@@ -46,6 +46,7 @@ RC testCase_5() {
 	int valueD = 0;
 
 	while (filter->getNextTuple(data) != QE_EOF) {
+		cout << "got in test 5" << endl;
 		int offset = 0;
 		
 		// is an attribute B NULL?
@@ -94,6 +95,7 @@ RC testCase_5() {
 		memset(data, 0, bufSize);
 		actualResultCnt++;
 	}
+	
 	if (expectedResultCnt != actualResultCnt) {
 		cerr << "***** The number of returned tuple is not correct. *****" << endl;
 		rc = fail;
