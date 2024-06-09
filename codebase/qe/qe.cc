@@ -383,11 +383,8 @@ RC INLJoin::compareValuesOnAttr() {
 
     //now we have leftValue and rightValue, compare them
     
-    if (compare(op, leftValue, rightValue, finalLeftType)) {
-        cout << "passed compare" << endl;
-        return SUCCESS;
-    }
-     
+    return compare(op, leftValue, rightValue, finalLeftType);
+
 }
 
 void INLJoin::setNullIndicatorBit(char *nullIndicator, int i) {
@@ -442,19 +439,21 @@ void INLJoin::updateNullIndicator() {
 
 RC INLJoin::getNextTuple(void *data) {
     if (_readLeft) {
-        _leftIn->getNextTuple(_leftData);
-        buildLeft(_resultData, _leftData);
+        buildLeftResult();
         _readLeft = false;
     }
-    RelationManager *rm = RelationManager::instance();
-    buildLeftResult();
-    _rightIn->getNextTuple(_rightData); //index scan should get <key, rid>. we need to make it a record by reading rid;
-    rm->readTuple(_rightIn->tableName, _rightIn->rid, _rightData);
-  
-    buildRightResult();
+    if (_rightIn->getNextTuple(_rightData) == EOF) {
+        _readLeft = true;
+        _rightIn->setIterator(NULL, NULL, true, true);
+        return getNextTuple(data);
+    }
+    if (!compareValuesOnAttr()) {
+        return getNextTuple(data);
+    }
 
-    rm->printTuple(_outputAttrs, _resultData);
-    //memcpy(data, _resultData, _resultDataSize);
+    buildRightResult();
+    memcpy(data, _resultData, _resultDataSize);
+    return SUCCESS;
 }
 
 RC INLJoin::buildRightResult() {
