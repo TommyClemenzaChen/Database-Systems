@@ -249,6 +249,8 @@ class INLJoin : public Iterator {
                const Condition &condition   // Join condition
         );
         RC compareValuesOnAttr();
+        void setNullIndicatorBit(char *nullIndicator, int i);
+        void updateNullIndicator();
         ~INLJoin(){};
 
         RC getNextTuple(void *data);
@@ -267,10 +269,11 @@ class INLJoin : public Iterator {
         void*_rightData;
         void*_resultData;
         bool _readLeft;
-        unsigned _finalDataSize;
-        unsigned _rightStartOffset;
+        unsigned _resultDataSize;
+        unsigned _resultOffset;
 
-        RC buildLeft();
+        RC buildLeftResult();
+        RC buildRightResult();
 };
 
 #endif

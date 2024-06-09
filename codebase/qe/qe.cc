@@ -1,5 +1,5 @@
-#include<algorithm>
-#include<iostream>
+#include <algorithm>
+#include <iostream>
 #include <cstring>
 #include "qe.h"
 
@@ -10,17 +10,16 @@ bool Iterator::compare(CompOp compOp, void* lhsData, void* data, AttrType type) 
     RBFM_ScanIterator *rbfm_si = nullptr;
     //NOTE: we do +1 because we want to read pass 1 byte for null indicator
     switch (type) {
-        cout << "got here" << endl;
         case TypeInt:
             int32_t recordInt;
             memcpy(&recordInt, (char*)lhsData, INT_SIZE);
-            cout << recordInt << endl;
+            //cout << recordInt << endl;
             return rbfm_si->checkScanCondition(recordInt, compOp, data);
             break;
         case TypeReal:
             float recordReal;
             memcpy(&recordReal, (char*)lhsData, sizeof(float));
-            cout << recordReal << endl;
+            //cout << recordReal << endl;
             return rbfm_si->checkScanCondition(recordReal, compOp, data);
             break;
         case TypeVarChar:
@@ -29,7 +28,7 @@ bool Iterator::compare(CompOp compOp, void* lhsData, void* data, AttrType type) 
             char *recordString = (char*)malloc(varcharSize+1); // if u get malloc error make sure every varchar malloc is +1
             memcpy(recordString, (char*)lhsData + VARCHAR_LENGTH_SIZE, varcharSize);
             recordString[varcharSize] = '\0';
-            cout << recordString << endl;
+            //cout << recordString << endl;
             return rbfm_si->checkScanCondition(recordString, compOp, data);
             break;
     }
@@ -264,8 +263,8 @@ INLJoin::INLJoin(Iterator *leftIn, IndexScan *rightIn, const Condition &conditio
     _leftIn->getAttributes(_lhsAttrs);
     _rightIn->getAttributes(_rhsAttrs);
 
-    _finalDataSize = 0;
-    _rightStartOffset = 0;
+    _resultDataSize = 0;
+    _resultOffset = 0;
 
      // add lhsAttr + rhsAttr 
     for (int i = 0; i < _lhsAttrs.size(); i++) {
@@ -391,153 +390,185 @@ RC INLJoin::compareValuesOnAttr() {
      
 }
 
-RC INLJoin::getNextTuple(void *data) {
-    RelationManager *rm = RelationManager::instance();
-    //LEFT
-    if (_readLeft) {
-        buildLeft(); //table scan + format resultData 
-        _readLeft = false; //makes recursive call go into building _rightData
-        return this->getNextTuple(data);
-    } 
-
-    //RIGHT
-    if (!_readLeft) {
-        cout << " got here " << endl;
-        RC rc = _rightIn->getNextTuple(_rightData); //index scan gives us <key, rid>
-        if (rc == QE_EOF) {
-            _readLeft = true;
-            _rightIn->setIterator(NULL, NULL, true, true); //reset
-            return SUCCESS;
-        }
-
-        rm->readTuple(_rightIn->tableName, _rightIn->rid, _rightData);
-        
-        //find the matching right side
-        if (compareValuesOnAttr() == SUCCESS) {
-            cout << "passed compare" << endl;
-            buildRight();
-            _readLeft = true;
-            _rightIn->setIterator(NULL, NULL, true, true);
-            return SUCCESS;
-        }
-        return this->getNextTuple(data);
-    }
-    cout << "_finalDataSize: " << _finalDataSize << endl;
-    memcpy(data, _resultData, _finalDataSize);
+void INLJoin::setNullIndicatorBit(char *nullIndicator, int i) {
+    int indicatorIndex = i / CHAR_BIT;
+    char indicatorMask = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
+    nullIndicator[indicatorIndex] |= indicatorMask;
 }
 
-RC INLJoin::buildRight() {
+void INLJoin::updateNullIndicator() {
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
     
-    //rightNullIndicator
-    int rightNullIndicatorSize = rbfm->getNullIndicatorSize(_rhsAttrs.size());
-    char rightNullIndicator[rightNullIndicatorSize];
-    memset(rightNullIndicator, 0, rightNullIndicatorSize); //we will update this later
-
-
-    memcpy((char*)_resultData + _rightStartOffset, rightNullIndicator, rightNullIndicatorSize);
-    unsigned offset = _rightStartOffset + rightNullIndicatorSize;
-
-    //left tuple values
-    int size = 0;
-    for (int i = 0; i < _lhsAttrs.size(); i++) {
-        switch (_lhsAttrs[i].type) {
-            case TypeInt:
-                memcpy((char*)_resultData + offset, (char*)_rightData + offset, INT_SIZE);
-                offset += INT_SIZE;
-                size += INT_SIZE;
-
-                break;
-            case TypeReal:
-                memcpy((char*)_resultData + offset, (char*)_rightData + offset, REAL_SIZE);
-                offset += REAL_SIZE;
-                size += REAL_SIZE;
-
-                break;
-            case TypeVarChar:
-                int varcharSize = 0;
-                memcpy(&varcharSize, (char*)_rightData + offset, VARCHAR_LENGTH_SIZE);
-                memcpy((char*)_resultData + offset, &varcharSize, VARCHAR_LENGTH_SIZE);
-                offset += VARCHAR_LENGTH_SIZE;
-
-                memcpy((char*)_resultData + offset, (char*)_rightData + offset, varcharSize);
-                offset += varcharSize;
-
-                size += VARCHAR_LENGTH_SIZE + varcharSize;
-
-                break;
-        }
-    }
-
-    cout << "rhs Size: " << size << endl;
-    return SUCCESS;
-}
-
-//whatever was passed in as data (tuple), format it, then store in _resultData
-RC INLJoin::buildLeft() {
-    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
-    _finalDataSize = 0;
-    
-    //leftData: | leftNullIndicator(s) | left tuple value(s) |
-    if (_rightIn->getNextTuple(_leftData) == QE_EOF) {
-        return QE_EOF;
-    }
-
-    //resultData: | leftNullIndicator(s) | rightNullIndicator(s) | left tuple value(s) |
-    
-    unsigned offset = 0;
     //leftNullIndicator
     int leftNullIndicatorSize = rbfm->getNullIndicatorSize(_lhsAttrs.size());
     char leftNullIndicator[leftNullIndicatorSize];
     memset(leftNullIndicator, 0, leftNullIndicatorSize);
     memcpy(leftNullIndicator, _leftData, leftNullIndicatorSize);
-   
-    memcpy((char*)_resultData, leftNullIndicator, leftNullIndicatorSize);
-    offset += leftNullIndicatorSize;
 
-    //rightNullIndicator
+    //rightNullIndicator 
     int rightNullIndicatorSize = rbfm->getNullIndicatorSize(_rhsAttrs.size());
     char rightNullIndicator[rightNullIndicatorSize];
-    memset(rightNullIndicator, 0, rightNullIndicatorSize); //we will update this later
+    memset(rightNullIndicator, 0, rightNullIndicatorSize);
+    memcpy(rightNullIndicator, _rightData, rightNullIndicatorSize);
 
-    memcpy((char*)_resultData + leftNullIndicatorSize, rightNullIndicator, rightNullIndicatorSize);
-    offset += rightNullIndicatorSize;
+    //outputNullIndicator
+    int outputNullIndicatorSize = rbfm->getNullIndicatorSize(_outputAttrs.size());
+    char outputNullIndicator[outputNullIndicatorSize];
+    memset(outputNullIndicator, 0, outputNullIndicatorSize);
+    memcpy(outputNullIndicator, _resultData, outputNullIndicatorSize);
+   
 
-    //left tuple values
-    int size = 0;
+    //add in left null indicator
     for (int i = 0; i < _lhsAttrs.size(); i++) {
-        switch (_lhsAttrs[i].type) {
-            case TypeInt:
-                memcpy((char*)_resultData + offset, (char*)_leftData + offset, INT_SIZE);
-                offset += INT_SIZE;
-                size += INT_SIZE;
+        int leftByteIndex = i / CHAR_BIT;
+        int leftBitIndex = CHAR_BIT - 1 - (i % CHAR_BIT);
+        if (leftNullIndicator[leftByteIndex] & (1 << leftBitIndex)) {
+            setNullIndicatorBit(outputNullIndicator, i);
+        }
+    }
 
+    //add in right null indicator
+    for (int i = 0; i < _lhsAttrs.size(); i++) {
+        int rightByteIndex = i / CHAR_BIT;
+        int rightBitIndex = CHAR_BIT - 1 - (i % CHAR_BIT);
+        if (leftNullIndicator[rightByteIndex] & (1 << rightBitIndex)) {
+            setNullIndicatorBit(outputNullIndicator, i);
+        }
+    }
+
+    memcpy(_resultData, outputNullIndicator, outputNullIndicatorSize);
+
+}
+
+RC INLJoin::getNextTuple(void *data) {
+    if (_readLeft) {
+        _leftIn->getNextTuple(_leftData);
+        buildLeft(_resultData, _leftData);
+        _readLeft = false;
+    }
+    RelationManager *rm = RelationManager::instance();
+    buildLeftResult();
+    _rightIn->getNextTuple(_rightData); //index scan should get <key, rid>. we need to make it a record by reading rid;
+    rm->readTuple(_rightIn->tableName, _rightIn->rid, _rightData);
+  
+    buildRightResult();
+
+    rm->printTuple(_outputAttrs, _resultData);
+    //memcpy(data, _resultData, _resultDataSize);
+}
+
+RC INLJoin::buildRightResult() {
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+
+    //call update null indicator
+    updateNullIndicator();
+
+    rbfm->printRecord(_rhsAttrs, _rightData);
+
+    //Utkarsh logic: need to manipulate the rightNullIndicator bits somehow :)
+    //do some form of bit manipulation here
+    
+    //right tuple values
+    unsigned rightOffset = rbfm->getNullIndicatorSize(_rhsAttrs.size());
+    for (int i = 0; i < _rhsAttrs.size(); i++) {
+        switch (_rhsAttrs[i].type) {
+            case TypeInt:
+                memcpy((char*)_resultData + _resultOffset, (char*)_rightData + rightOffset, INT_SIZE);
+                rightOffset += INT_SIZE;
+                _resultOffset += INT_SIZE;
+            
                 break;
             case TypeReal:
-                memcpy((char*)_resultData + offset, (char*)_leftData + offset, REAL_SIZE);
-                offset += REAL_SIZE;
-                size += REAL_SIZE;
+                memcpy((char*)_resultData + _resultOffset, (char*)_rightData + rightOffset, REAL_SIZE);
+                rightOffset += REAL_SIZE;
+                _resultOffset += REAL_SIZE;
 
                 break;
             case TypeVarChar:
                 int varcharSize = 0;
-                memcpy(&varcharSize, (char*)_leftData + offset, VARCHAR_LENGTH_SIZE);
-                memcpy((char*)_resultData + offset, &varcharSize, VARCHAR_LENGTH_SIZE);
-                offset += VARCHAR_LENGTH_SIZE;
+                memcpy(&varcharSize, (char*)_rightData + rightOffset, VARCHAR_LENGTH_SIZE);
+                memcpy((char*)_resultData + _resultOffset, &varcharSize, VARCHAR_LENGTH_SIZE);
+                rightOffset += VARCHAR_LENGTH_SIZE;
+                _resultOffset += VARCHAR_LENGTH_SIZE;
 
-                memcpy((char*)_resultData + offset, (char*)_leftData + offset, varcharSize);
-                offset += varcharSize;
+                memcpy((char*)_resultData + _resultOffset, (char*)_rightData + rightOffset, varcharSize);
+                rightOffset += varcharSize;
+                _resultOffset += varcharSize;
 
-                size += VARCHAR_LENGTH_SIZE + varcharSize;
 
                 break;
         }
     }
 
-    _finalDataSize += offset;
+    //at this point, the _resultData should be this format:
+    //| leftNullIndicator(s) | rightNullIndicator(s) | left tuple value(s) | right tuple value(s)
+
+    _resultDataSize = _resultOffset; //final size
+
+    rbfm->printRecord(_outputAttrs, _resultData);
+
+/*
+    int temp;
+    memcpy(&temp, (char*)_resultData + 14, INT_SIZE);
+    cout << temp << endl;
+ */
+
+    return SUCCESS;
+}
+
+//whatever was passed in as data (tuple), format it, then store in _resultData
+RC INLJoin::buildLeftResult() {
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    _resultDataSize = 0;
+    _resultOffset = 0;
+    
+    //leftData: | leftNullIndicator(s) | left tuple value(s) |
+    if (_leftIn->getNextTuple(_leftData) == QE_EOF) {
+        return QE_EOF;
+    }
+
+    rbfm->printRecord(_lhsAttrs, _leftData);
+    
+    //call update null indicator
+    updateNullIndicator();
+
+    //left tuple values
+    _resultOffset = rbfm->getNullIndicatorSize(_outputAttrs.size());
+    unsigned leftOffset = rbfm->getNullIndicatorSize(_lhsAttrs.size());
+
+    for (int i = 0; i < _lhsAttrs.size(); i++) {
+        switch (_lhsAttrs[i].type) {
+            case TypeInt:
+                memcpy((char*)_resultData + _resultOffset, (char*)_leftData + leftOffset, INT_SIZE);
+                leftOffset += INT_SIZE;
+                _resultOffset += INT_SIZE;
+            
+                break;
+            case TypeReal:
+                memcpy((char*)_resultData + _resultOffset, (char*)_leftData + leftOffset, REAL_SIZE);
+                leftOffset += REAL_SIZE;
+                _resultOffset += REAL_SIZE;
+
+                break;
+            case TypeVarChar:
+                int varcharSize = 0;
+                memcpy(&varcharSize, (char*)_leftData + leftOffset, VARCHAR_LENGTH_SIZE);
+                memcpy((char*)_resultData + _resultOffset, &varcharSize, VARCHAR_LENGTH_SIZE);
+                leftOffset += VARCHAR_LENGTH_SIZE;
+                _resultOffset += VARCHAR_LENGTH_SIZE;
+
+                memcpy((char*)_resultData + _resultOffset, (char*)_leftData + leftOffset, varcharSize);
+                leftOffset += varcharSize;
+                _resultOffset += varcharSize;
+
+                break;
+        }
+    }
+
+    _resultDataSize = _resultOffset; //temporary size of _resultData since we haven't added _rightData
 
     //by this point, we should have formatted _resultData to be | leftNullIndicator(s) | rightNullIndicator(s) | left tuple value(s) |
-    cout << "formatted" << endl;
+    
     return SUCCESS;
 }
         
